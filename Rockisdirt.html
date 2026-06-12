@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RockisDirt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: sans-serif;
+        }
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #111;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            user-select: none;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #333;
+            border-top: 5px solid #FFD700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loading-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 1px 1px #000;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            pointer-events: none;
+            user-select: none;
+            z-index: 10;
+        }
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            border: 2px solid #555;
+            z-index: 20;
+            display: none;
+        }
+        h1 {
+            margin-top: 0;
+            color: #FFD700; 
+            font-size: 36px;
+            text-shadow: 2px 2px #000;
+        }
+        #hotbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            background: rgba(26, 26, 26, 0.85);
+            padding: 6px;
+            border-radius: 6px;
+            border: 3px solid #333;
+            user-select: none;
+            z-index: 10;
+        }
+        .slot {
+            width: 50px;
+            height: 50px;
+            margin: 0 4px;
+            background: #444;
+            border: 2px solid #888;
+            border-radius: 4px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .slot.active {
+            border-color: #FF8800;
+            background: #555566;
+            box-shadow: 0 0 10px #FF8800;
+        }
+        .slot-num {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            color: #aaa;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .slot-preview {
+            width: 32px;
+            height: 32px;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <div id="loading-text">Mining water...</div>
+    </div>
+
+    <div id="crosshair">+</div>
+    
+    <div id="instructions">
+        <h1>RockisDirt</h1>
+        <p style="font-size: 16px; color: #aaa;">Featuring James</p>
+        <p>Click anywhere to play</p>
+        <p style="font-size: 14px; color: #ccc;">
+            <b>W, A, S, D</b> - Move | <b>Spacebar</b> - Swim Up / Jump<br>
+            <b>1 - 7</b> - Select Hotbar Block<br>
+            <b>Left-Click</b> - Mine Block | <b>Right-Click</b> - Place Block
+        </p>
+    </div>
+
+    <div id="hotbar"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- LOADING SCREEN SYSTEM ---
+        const loadingMessages = [
+            "Mining water...",
+            "Sifting desert sand...",
+            "Sprouting tree roots...",
+            "Placing hidden stone layers...",
+            "Growing grass covers...",
+            "Sculpting rolling hills..."
+        ];
+        
+        let messageIdx = 0;
+        const msgInterval = setInterval(() => {
+            messageIdx = (messageIdx + 1) % loadingMessages.length;
+            document.getElementById('loading-text').innerText = loadingMessages[messageIdx];
+        }, 400);
+
+        // --- 1. SETUP GAME CANVAS ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); 
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.03);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.45);
+        directionalLight.position.set(15, 40, 20);
+        scene.add(directionalLight);
+
+        // --- 2. PALETTES ---
+        const PALETTES = {
+            "grass_side": [
+                ["#2E8B57", "#3CB371", "#2E8B57", "#3CB371"],
+                ["#3CB371", "#228B22", "#228B22", "#2E8B57"],
+                ["#556B2F", "#8B5A2B", "#556B2F", "#8B5A2B"],
+                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"]
+            ],
+            "grass_top": [
+                ["#2E8B57", "#3CB371", "#228B22", "#3CB371"],
+                ["#3CB371", "#2E8B57", "#3CB371", "#228B22"],
+                ["#228B22", "#3CB371", "#2E8B57", "#3CB371"],
+                ["#3CB371", "#228B22", "#3CB371", "#228B22"]
+            ],
+            "stone": [
+                ["#708090", "#808080", "#A9A9A9", "#708090"],
+                ["#808080", "#A9A9A9", "#708090", "#808080"],
+                ["#A9A9A9", "#708090", "#808080", "#A9A9A9"],
+                ["#708090", "#808080", "#A9A9A9", "#708090"]
+            ],
+            "dirt": [
+                ["#8B5A2B", "#5C4033", "#8B5A2B", "#5C4033"],
+                ["#5C4033", "#8B5A2B", "#5C4033", "#8B5A2B"],
+                ["#8B5A2B", "#5C4033", "#8B5A2B", "#5C4033"],
+                ["#5C4033", "#8B5A2B", "#5C4033", "#8B5A2B"]
+            ],
+            "wood": [
+                ["#8B5A2B", "#A0522D", "#A0522D", "#8B5A2B"],
+                ["#CD853F", "#CD853F", "#8B5A2B", "#A0522D"],
+                ["#A0522D", "#8B5A2B", "#CD853F", "#CD853F"],
+                ["#8B5A2B", "#A0522D", "#A0522D", "#8B5A2B"]
+            ],
+            "leaves": [
+                ["#32CD32", "#228B22", "#32CD32", "#98FB98"],
+                ["#008000", "#006400", "#008000", "#32CD32"],
+                ["#228B22", "#008000", "#228B22", "#006400"],
+                ["#98FB98", "#32CD32", "#008000", "#228B22"]
+            ],
+            "sand": [
+                ["#F4A460", "#EDC9AF", "#EDC9AF", "#F4A460"],
+                ["#EDC9AF", "#F4A460", "#F4A460", "#EDC9AF"],
+                ["#F4A460", "#EDC9AF", "#EDC9AF", "#F4A460"],
+                ["#EDC9AF", "#F4A460", "#F4A460", "#EDC9AF"]
+            ],
+            "water": [
+                ["#1E90FF", "#00BFFF", "#1E90FF", "#1E90FF"],
+                ["#00BFFF", "#4169E1", "#4169E1", "#00BFFF"],
+                ["#1E90FF", "#1E90FF", "#00BFFF", "#4169E1"],
+                ["#4169E1", "#00BFFF", "#1E90FF", "#1E90FF"]
+            ]
+        };
+
+        // --- 3. TEXTURE GENERATOR ---
+        const textureCanvases = {};
+
+        function makeBlockTexture(patternName, transparent = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const matrix = PALETTES[patternName];
+            const size = 8; 
+
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    ctx.fillStyle = matrix[r][c];
+                    ctx.fillRect(c * size, r * size, size, size);
+                }
+            }
+
+            textureCanvases[patternName] = canvas.toDataURL();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter; 
+            texture.minFilter = THREE.NearestFilter;
+            
+            return new THREE.MeshLambertMaterial({ 
+                map: texture, 
+                transparent: transparent, 
+                opacity: transparent ? 0.6 : 1.0 
+            });
+        }
+
+        const mats = {
+            grassSide: makeBlockTexture("grass_side"),
+            grassTop: makeBlockTexture("grass_top"),
+            stone: makeBlockTexture("stone"),
+            dirt: makeBlockTexture("dirt"),
+            wood: makeBlockTexture("wood"),
+            leaves: makeBlockTexture("leaves"),
+            sand: makeBlockTexture("sand"),
+            water: makeBlockTexture("water", true)
+        };
+
+        const blockMaterials = {
+            "grass": [mats.grassSide, mats.grassSide, mats.grassTop, mats.dirt, mats.grassSide, mats.grassSide],
+            "dirt": mats.dirt,
+            "stone": mats.stone,
+            "wood": mats.wood,
+            "leaves": mats.leaves,
+            "sand": mats.sand,
+            "water": mats.water
+        };
+
+        // --- 4. THE 7-SLOT HOTBAR ---
+        const BLOCK_TYPES = ["dirt", "grass", "water", "wood", "stone", "sand", "leaves"];
+        let currentBlockType = "dirt";
+
+        function buildHotbarUI() {
+            const hotbarEl = document.getElementById('hotbar');
+            hotbarEl.innerHTML = '';
+            
+            BLOCK_TYPES.forEach((type, index) => {
+                const slot = document.createElement('div');
+                slot.className = `slot ${type === currentBlockType ? 'active' : ''}`;
+                slot.id = `slot-${index + 1}`;
+
+                const num = document.createElement('div');
+                num.className = 'slot-num';
+                num.innerText = index + 1;
+
+                const img = document.createElement('img');
+                img.className = 'slot-preview';
+                img.src = textureCanvases[type === 'grass' ? 'grass_top' : type];
+
+                slot.appendChild(num);
+                slot.appendChild(img);
+                hotbarEl.appendChild(slot);
+            });
+        }
+
+        function switchBlockIndex(index) {
+            if(index >= 0 && index < BLOCK_TYPES.length) {
+                currentBlockType = BLOCK_TYPES[index];
+                buildHotbarUI();
+            }
+        }
+
+        // --- 5. WORLD GENERATOR ---
+        const blockGeo = new THREE.BoxGeometry(1, 1, 1);
+        const worldSize = 30;
+        const objects = []; 
+        const BEDROCK_Y = -12; 
+
+        function createBlock(x, y, z, type) {
+            const materialData = blockMaterials[type];
+            const block = new THREE.Mesh(blockGeo, materialData);
+            block.position.set(x, y, z);
+            block.name = type; 
+            scene.add(block);
+            objects.push(block);
+        }
+
+        const WATER_CEILING_Y = -1; 
+
+        for (let x = -worldSize/2; x < worldSize/2; x++) {
+            for (let z = -worldSize/2; z < worldSize/2; z++) {
+                
+                let terrainType = "forest";
+                if (x < -8) {
+                    terrainType = "ocean";
+                } else if (x >= -8 && x <= -5) {
+                    terrainType = "beach";
+                } else if (x > 6) {
+                    terrainType = "desert";
+                }
+
+                if (terrainType === "ocean") {
+                    let seabedSurfaceY = Math.floor(Math.sin(x * 0.2) * 1.5 + Math.cos(z * 0.2) * 1.5) - 4;
+                    if (seabedSurfaceY >= WATER_CEILING_Y) seabedSurfaceY = WATER_CEILING_Y - 1;
+
+                    for (let y = seabedSurfaceY; y >= seabedSurfaceY - 4; y--) createBlock(x, y, z, "sand");
+                    for (let y = seabedSurfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
+                    
+                    for (let y = WATER_CEILING_Y; y > seabedSurfaceY; y--) {
+                        createBlock(x, y, z, "water");
+                    }
+                } 
+                else if (terrainType === "beach") {
+                    createBlock(x, WATER_CEILING_Y, z, "sand");
+                    for (let y = WATER_CEILING_Y - 1; y >= WATER_CEILING_Y - 4; y--) createBlock(x, y, z, "sand");
+                    for (let y = WATER_CEILING_Y - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
+                }
+                else if (terrainType === "desert") {
+                    let surfaceY = Math.floor(Math.sin(x * 0.15) * 2.0 + Math.cos(z * 0.15) * 2.0);
+                    for (let y = surfaceY; y >= surfaceY - 4; y--) createBlock(x, y, z, "sand");
+                    for (let y = surfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
+                } 
+                else { 
+                    let rawSurfaceY = Math.sin(x * 0.2) * 1.5 + Math.cos(z * 0.2) * 1.5;
+                    
+                    if (x >= -4 && x <= -1) {
+                        let t = (x - (-5)) / 4; 
+                        rawSurfaceY = THREE.MathUtils.lerp(WATER_CEILING_Y, rawSurfaceY, t);
+                    }
+
+                    let surfaceY = Math.floor(rawSurfaceY);
+                    if (surfaceY < WATER_CEILING_Y) surfaceY = WATER_CEILING_Y;
+
+                    createBlock(x, surfaceY, z, "grass");
+                    for (let y = surfaceY - 1; y >= surfaceY - 4; y--) createBlock(x, y, z, "dirt");
+                    for (let y = surfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
+
+                    if (x > 1 && z !== 0 && Math.random() < 0.04) {
+                        let trunkH = Math.floor(Math.random() * 2) + 3;
+                        for (let th = 1; th <= trunkH; th++) createBlock(x, surfaceY + th, z, "wood");
+                        let leafTop = surfaceY + trunkH;
+                        for (let lx = -1; lx <= 1; lx++) {
+                            for (let lz = -1; lz <= 1; lz++) {
+                                for (let ly = 0; ly <= 1; ly++) {
+                                    if(lx === 0 && lz === 0 && ly === 0) continue;
+                                    createBlock(x + lx, leafTop + ly, z + lz, "leaves");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        buildHotbarUI();
+
+        setTimeout(() => {
+            clearInterval(msgInterval);
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('instructions').style.display = 'block';
+        }, 1800);
+
+        // --- 6. PLAYER MOVEMENT & COLLISION ENGINE ---
+        camera.position.set(0, 8, 0); 
+
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false, spacePressed = false;
+        const velocity = new THREE.Vector3();
+        
+        const speed = 12.0, friction = 6.0, GRAVITY = 22.0, JUMP_FORCE = 5.5; 
+        
+        const PLAYER_RADIUS = 0.35; 
+        const PLAYER_HEIGHT_EYES = 1.7; 
+        const PLAYER_TOTAL_HEIGHT = 1.8;
+
+        let clock = new THREE.Clock();
+        const interactionRaycaster = new THREE.Raycaster();
+
+        const onKeyDown = (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': 
+                    spacePressed = true;
+                    break;
+                case 'Digit1': switchBlockIndex(0); break;
+                case 'Digit2': switchBlockIndex(1); break;
+                case 'Digit3': switchBlockIndex(2); break;
+                case 'Digit4': switchBlockIndex(3); break;
+                case 'Digit5': switchBlockIndex(4); break;
+                case 'Digit6': switchBlockIndex(5); break;
+                case 'Digit7': switchBlockIndex(6); break; 
+            }
+        };
+
+        const onKeyUp = (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'Space': spacePressed = false; break;
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+
+        document.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement !== document.body) return;
+
+            interactionRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
+            const hits = interactionRaycaster.intersectObjects(objects);
+
+            if (hits.length > 0 && hits[0].distance < 5.5) {
+                const targetedMesh = hits[0].object;
+
+                if (e.button === 0) { 
+                    if (targetedMesh.position.y <= BEDROCK_Y) return; 
+
+                    scene.remove(targetedMesh);
+                    const idx = objects.indexOf(targetedMesh);
+                    if(idx > -1) objects.splice(idx, 1);
+                } 
+                else if (e.button === 2) { 
+                    const normal = hits[0].face.normal.clone();
+                    const spawnPos = targetedMesh.position.clone().add(normal);
+
+                    const playerFloorPos = camera.position.clone().setY(Math.floor(camera.position.y));
+                    if(spawnPos.distanceTo(playerFloorPos) < 1 && normal.y === -1) return; 
+
+                    createBlock(spawnPos.x, spawnPos.y, spawnPos.z, currentBlockType);
+                }
+            }
+        });
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        const instructions = document.getElementById('instructions');
+        instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
+        document.addEventListener('pointerlockchange', () => {
+            if(document.getElementById('loading-screen').style.display !== 'none') return;
+            instructions.style.display = (document.pointerLockElement === document.body) ? 'none' : 'block';
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (document.pointerLockElement !== document.body) return;
+            camera.rotation.y -= event.movementX * 0.002;
+            camera.rotation.x -= event.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        });
+
+        camera.rotation.order = "YXZ";
+
+        // FIX: Added water detection to check if player box intersects a water tile
+        function checkIsInWater(px, py, pz) {
+            const pMinX = px - PLAYER_RADIUS, pMaxX = px + PLAYER_RADIUS;
+            const pMinZ = pz - PLAYER_RADIUS, pMaxZ = pz + PLAYER_RADIUS;
+            const pMinY = py - PLAYER_HEIGHT_EYES, pMaxY = py + 0.1;
+
+            for (let i = 0; i < objects.length; i++) {
+                const obj = objects[i];
+                if (obj.name !== "water") continue;
+
+                const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
+                if (pMaxX > bx - 0.5 && pMinX < bx + 0.5 &&
+                    pMaxY > by - 0.5 && pMinY < by + 0.5 &&
+                    pMaxZ > bz - 0.5 && pMinZ < bz + 0.5) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function checkBlockOverlap(px, py, pz) {
+            const pMinX = px - PLAYER_RADIUS, pMaxX = px + PLAYER_RADIUS;
+            const pMinZ = pz - PLAYER_RADIUS, pMaxZ = pz + PLAYER_RADIUS;
+            const pMinY = py - PLAYER_HEIGHT_EYES, pMaxY = py + (PLAYER_TOTAL_HEIGHT - PLAYER_HEIGHT_EYES);
+
+            for (let i = 0; i < objects.length; i++) {
+                const obj = objects[i];
+                if (obj.name === "water") continue; // Water is ignored by hard collision physics now!
+
+                const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
+                if (pMaxX > bx - 0.5 && pMinX < bx + 0.5 &&
+                    pMaxY > by - 0.5 && pMinY < by + 0.5 &&
+                    pMaxZ > bz - 0.5 && pMinZ < bz + 0.5) {
+                    return true; 
+                }
+            }
+            return false;
+        }
+
+        // --- 7. GAME LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (document.pointerLockElement === document.body) {
+                const delta = clock.getDelta();
+
+                // Check fluid context state
+                const inWater = checkIsInWater(camera.position.x, camera.position.y, camera.position.z);
+
+                // Apply dynamic fluid friction / dampening
+                const currentFriction = inWater ? friction * 1.8 : friction;
+                velocity.x -= velocity.x * currentFriction * delta;
+                velocity.z -= velocity.z * friction * delta; // standard lateral decay
+
+                // Apply dynamic gravity (buoyancy)
+                if (inWater) {
+                    velocity.y -= (GRAVITY * 0.25) * delta; // Sink slower in water
+                    if (velocity.y < -3.0) velocity.y = -3.0; // Terminal velocity cap in liquid
+                } else {
+                    velocity.y -= GRAVITY * delta; // Normal air physics
+                }
+
+                const frontVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+                const sideVector = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+
+                const moveVector = new THREE.Vector3();
+                if (moveForward) moveVector.add(frontVector);
+                if (moveBackward) moveVector.sub(frontVector);
+                if (moveRight) moveVector.add(sideVector);
+                if (moveLeft) moveVector.sub(sideVector);
+                moveVector.normalize();
+
+                // Apply dynamic acceleration speeds
+                const currentSpeed = inWater ? speed * 0.4 : speed; 
+                if (moveForward || moveBackward || moveRight || moveLeft) {
+                    velocity.x += moveVector.x * currentSpeed * 4.0 * delta;
+                    velocity.z += moveVector.z * currentSpeed * 4.0 * delta;
+                }
+
+                // Handle Input Actions (Jump vs Swim up)
+                if (spacePressed) {
+                    if (inWater) {
+                        velocity.y = 2.5; // Upward swim impulse force loop
+                    } else if (canJump) {
+                        velocity.y = JUMP_FORCE; // Standard solid ground leap
+                        canJump = false;
+                    }
+                }
+
+                let newPosX = camera.position.x + velocity.x * delta;
+                let newPosY = camera.position.y;
+                let newPosZ = camera.position.z + velocity.z * delta;
+
+                if (!checkBlockOverlap(newPosX, camera.position.y, camera.position.z)) {
+                    camera.position.x = newPosX;
+                } else {
+                    velocity.x = 0; 
+                }
+
+                if (!checkBlockOverlap(camera.position.x, camera.position.y, newPosZ)) {
+                    camera.position.z = newPosZ;
+                } else {
+                    velocity.z = 0; 
+                }
+
+                let targetY = camera.position.y + velocity.y * delta;
+                
+                if (velocity.y < 0) { 
+                    if (checkBlockOverlap(camera.position.x, targetY, camera.position.z)) {
+                        velocity.y = 0;
+                        canJump = true;
+                        targetY = Math.floor(camera.position.y - PLAYER_HEIGHT_EYES + 0.5) + PLAYER_HEIGHT_EYES;
+                    }
+                } else if (velocity.y > 0) { 
+                    if (checkBlockOverlap(camera.position.x, targetY, camera.position.z)) {
+                        velocity.y = 0; 
+                    }
+                }
+
+                camera.position.y = targetY;
+
+                if (camera.position.y < -25) {
+                    velocity.y = 0;
+                    camera.position.set(0, 8, 0);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
