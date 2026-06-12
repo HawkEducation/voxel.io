@@ -82,6 +82,70 @@
             font-size: 36px;
             text-shadow: 2px 2px #000;
         }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 10;
+            user-select: none;
+        }
+        .hud-panel {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            border: 1px solid #555;
+        }
+        #health-bar-container {
+            width: 150px;
+            height: 14px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        #health-bar {
+            width: 100%;
+            height: 100%;
+            background: #ff3333;
+            transition: width 0.1s ease;
+        }
+        #crafting-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 30, 30, 0.95);
+            border: 3px solid #FFD700;
+            border-radius: 8px;
+            padding: 20px;
+            color: white;
+            z-index: 30;
+            display: none;
+            text-align: center;
+            user-select: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        #craft-btn {
+            background: #228B22;
+            color: white;
+            border: 2px solid #32CD32;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        #craft-btn:hover {
+            background: #2E8B57;
+        }
         #hotbar {
             position: absolute;
             bottom: 20px;
@@ -96,8 +160,8 @@
             z-index: 10;
         }
         .slot {
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             margin: 0 4px;
             background: #444;
             border: 2px solid #888;
@@ -120,6 +184,15 @@
             font-size: 10px;
             font-weight: bold;
         }
+        .slot-count {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 1px 1px #000;
+        }
         .slot-preview {
             width: 32px;
             height: 32px;
@@ -136,14 +209,35 @@
 
     <div id="crosshair">+</div>
     
+    <div id="hud">
+        <div id="mode-badge" class="hud-panel">MODE: SURVIVAL</div>
+        <div id="health-panel" class="hud-panel">
+            HEALTH
+            <div id="health-bar-container"><div id="health-bar"></div></div>
+        </div>
+        <div id="time-badge" class="hud-panel">TIME: DAY</div>
+    </div>
+
+    <div id="crafting-menu">
+        <h2>Crafting Table</h2>
+        <p style="color: #aaa; font-size: 14px;">Recipe:</p>
+        <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+            <strong>1 Wood + 1 Stone ➔ 4 Torches</strong>
+        </div>
+        <div id="craft-materials" style="font-size: 14px; margin-bottom: 10px;"></div>
+        <button id="craft-btn">Craft Torches</button>
+        <p style="font-size: 12px; color: #888; margin-top: 15px;">Press 'C' or 'Escape' to Close</p>
+    </div>
+    
     <div id="instructions">
         <h1>RockisDirt</h1>
         <p style="font-size: 16px; color: #aaa;">Featuring James</p>
         <p>Click anywhere to play</p>
         <p style="font-size: 14px; color: #ccc;">
-            <b>W, A, S, D</b> - Move | <b>Spacebar</b> - Swim Up / Jump<br>
-            <b>1 - 7</b> - Select Hotbar Block<br>
-            <b>Left-Click</b> - Mine Block | <b>Right-Click</b> - Place Block
+            <b>W, A, S, D</b> - Move | <b>Spacebar</b> - Jump / Fly Up<br>
+            <b>Shift</b> - Fly Down (Creative Only) | <b>M</b> - Toggle Survival/Creative<br>
+            <b>P</b> - Activate Peaceful (Classic Gravity) | <b>C</b> - Open Crafting<br>
+            <b>1 - 7</b> - Hotbar Selection | <b>Left Click</b> - Mine | <b>Right Click</b> - Place Block
         </p>
     </div>
 
@@ -156,8 +250,8 @@
         const loadingMessages = [
             "Mining water...",
             "Sifting desert sand...",
-            "Sprouting tree roots...",
-            "Placing hidden stone layers...",
+            "Calming the night wildlife...",
+            "Assembling crafting modules...",
             "Growing grass covers...",
             "Sculpting rolling hills..."
         ];
@@ -233,6 +327,12 @@
                 ["#00BFFF", "#4169E1", "#4169E1", "#00BFFF"],
                 ["#1E90FF", "#1E90FF", "#00BFFF", "#4169E1"],
                 ["#4169E1", "#00BFFF", "#1E90FF", "#1E90FF"]
+            ],
+            "torch": [
+                ["#FFCC00", "#FF6600", "#FFCC00", "#FF6600"],
+                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"],
+                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"],
+                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"]
             ]
         };
 
@@ -275,7 +375,8 @@
             wood: makeBlockTexture("wood"),
             leaves: makeBlockTexture("leaves"),
             sand: makeBlockTexture("sand"),
-            water: makeBlockTexture("water", true)
+            water: makeBlockTexture("water", true),
+            torch: makeBlockTexture("torch")
         };
 
         const blockMaterials = {
@@ -285,12 +386,23 @@
             "wood": mats.wood,
             "leaves": mats.leaves,
             "sand": mats.sand,
-            "water": mats.water
+            "water": mats.water,
+            "torch": mats.torch
         };
 
-        // --- 4. THE 7-SLOT HOTBAR ---
-        const BLOCK_TYPES = ["dirt", "grass", "water", "wood", "stone", "sand", "leaves"];
+        // --- 4. THE ITEM INVENTORY ---
+        const BLOCK_TYPES = ["dirt", "grass", "stone", "wood", "leaves", "sand", "torch"];
         let currentBlockType = "dirt";
+
+        const inventory = {
+            "dirt": 0,
+            "grass": 0,
+            "stone": 0,
+            "wood": 0,
+            "leaves": 0,
+            "sand": 0,
+            "torch": 0 
+        };
 
         function buildHotbarUI() {
             const hotbarEl = document.getElementById('hotbar');
@@ -309,8 +421,14 @@
                 img.className = 'slot-preview';
                 img.src = textureCanvases[type === 'grass' ? 'grass_top' : type];
 
+                const countEl = document.createElement('div');
+                countEl.className = 'slot-count';
+                // Infinite resources display for Creative OR Peaceful modes
+                countEl.innerText = (gameMode === "creative" || gameMode === "peaceful") ? "∞" : inventory[type];
+
                 slot.appendChild(num);
                 slot.appendChild(img);
+                slot.appendChild(countEl);
                 hotbarEl.appendChild(slot);
             });
         }
@@ -324,17 +442,24 @@
 
         // --- 5. WORLD GENERATOR ---
         const blockGeo = new THREE.BoxGeometry(1, 1, 1);
+        const torchGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
         const worldSize = 30;
         const objects = []; 
+        const torches = [];
         const BEDROCK_Y = -12; 
 
         function createBlock(x, y, z, type) {
+            let isTorch = type === "torch";
             const materialData = blockMaterials[type];
-            const block = new THREE.Mesh(blockGeo, materialData);
-            block.position.set(x, y, z);
+            const block = new THREE.Mesh(isTorch ? torchGeo : blockGeo, materialData);
+            block.position.set(x, isTorch ? y + 0.3 : y, z);
             block.name = type; 
             scene.add(block);
             objects.push(block);
+
+            if (isTorch) {
+                torches.push(block);
+            }
         }
 
         const WATER_CEILING_Y = -1; 
@@ -359,7 +484,11 @@
                     for (let y = seabedSurfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
                     
                     for (let y = WATER_CEILING_Y; y > seabedSurfaceY; y--) {
-                        createBlock(x, y, z, "water");
+                        const block = new THREE.Mesh(blockGeo, blockMaterials["water"]);
+                        block.position.set(x, y, z);
+                        block.name = "water";
+                        scene.add(block);
+                        objects.push(block);
                     }
                 } 
                 else if (terrainType === "beach") {
@@ -404,18 +533,42 @@
             }
         }
 
-        buildHotbarUI();
+        // --- 6. MONSTER SYSTEM ---
+        const monsters = [];
+        const monsterGeo = new THREE.BoxGeometry(0.8, 1.6, 0.8);
+        
+        const monsterMat = (() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#2c1e3d'; ctx.fillRect(0, 0, 16, 16);
+            ctx.fillStyle = '#ff0033'; ctx.fillRect(3, 4, 2, 2); ctx.fillRect(11, 4, 2, 2);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+            return new THREE.MeshLambertMaterial({ map: tex });
+        })();
 
-        setTimeout(() => {
-            clearInterval(msgInterval);
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('instructions').style.display = 'block';
-        }, 1800);
+        function spawnMonster(x, y, z) {
+            const mesh = new THREE.Mesh(monsterGeo, monsterMat);
+            mesh.position.set(x, y + 0.8, z);
+            scene.add(mesh);
+            monsters.push({
+                mesh: mesh,
+                health: 2,
+                velocity: new THREE.Vector3()
+            });
+        }
 
-        // --- 6. PLAYER MOVEMENT & COLLISION ENGINE ---
+        // --- 7. PLAYER MOVEMENT & CONTROLS ---
         camera.position.set(0, 8, 0); 
 
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false, spacePressed = false;
+        // GAME MODES: "survival", "creative", "peaceful"
+        let gameMode = "survival";
+        let playerHealth = 20;
+        const maxHealth = 20;
+        let isCraftingOpen = false;
+
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false, spacePressed = false, shiftPressed = false;
         const velocity = new THREE.Vector3();
         
         const speed = 12.0, friction = 6.0, GRAVITY = 22.0, JUMP_FORCE = 5.5; 
@@ -424,17 +577,78 @@
         const PLAYER_HEIGHT_EYES = 1.7; 
         const PLAYER_TOTAL_HEIGHT = 1.8;
 
+        let worldTime = 0.0; 
+        let isNight = false;
+        let monsterSpawnTimer = 0;
+
         let clock = new THREE.Clock();
         const interactionRaycaster = new THREE.Raycaster();
 
+        function updateCraftingUI() {
+            const matDiv = document.getElementById('craft-materials');
+            matDiv.innerHTML = `Your Inventory: <br>
+                <span style="color: ${inventory.wood >= 1 ? '#55ff55' : '#ff5555'}">Wood: ${inventory.wood}/1</span> | 
+                <span style="color: ${inventory.stone >= 1 ? '#55ff55' : '#ff5555'}">Stone: ${inventory.stone}/1</span>`;
+        }
+
+        function toggleCraftingMenu() {
+            // Crafting only serves survival cycles
+            if (gameMode !== "survival") return;
+
+            isCraftingOpen = !isCraftingOpen;
+            const menu = document.getElementById('crafting-menu');
+            
+            if(isCraftingOpen) {
+                menu.style.display = 'block';
+                updateCraftingUI();
+                document.exitPointerLock();
+            } else {
+                menu.style.display = 'none';
+                document.body.requestPointerLock();
+            }
+        }
+
+        document.getElementById('craft-btn').addEventListener('click', () => {
+            if (inventory.wood >= 1 && inventory.stone >= 1) {
+                inventory.wood -= 1;
+                inventory.stone -= 1;
+                inventory.torch += 4;
+                updateCraftingUI();
+                buildHotbarUI();
+            }
+        });
+
         const onKeyDown = (e) => {
+            if (isCraftingOpen && e.code !== 'KeyC' && e.code !== 'Escape') return;
+
             switch (e.code) {
                 case 'KeyW': moveForward = true; break;
                 case 'KeyA': moveLeft = true; break;
                 case 'KeyS': moveBackward = true; break;
                 case 'KeyD': moveRight = true; break;
-                case 'Space': 
-                    spacePressed = true;
+                case 'Space': spacePressed = true; break;
+                case 'ShiftLeft': case 'ShiftRight': shiftPressed = true; break;
+                case 'KeyC': 
+                    toggleCraftingMenu();
+                    break;
+                case 'KeyP':
+                    // Active peaceful core layout rule overrides
+                    gameMode = "peaceful";
+                    document.getElementById('mode-badge').innerText = `MODE: ${gameMode.toUpperCase()}`;
+                    playerHealth = maxHealth;
+                    document.getElementById('health-bar').style.width = '100%';
+                    velocity.set(0,0,0);
+                    buildHotbarUI();
+                    break;
+                case 'KeyM': 
+                    gameMode = (gameMode === "survival") ? "creative" : "survival";
+                    document.getElementById('mode-badge').innerText = `MODE: ${gameMode.toUpperCase()}`;
+                    if(gameMode === "creative" || gameMode === "peaceful") {
+                        playerHealth = maxHealth;
+                        document.getElementById('health-bar').style.width = '100%';
+                    }
+                    velocity.set(0, 0, 0);
+                    buildHotbarUI();
                     break;
                 case 'Digit1': switchBlockIndex(0); break;
                 case 'Digit2': switchBlockIndex(1); break;
@@ -453,6 +667,7 @@
                 case 'KeyS': moveBackward = false; break;
                 case 'KeyD': moveRight = false; break;
                 case 'Space': spacePressed = false; break;
+                case 'ShiftLeft': case 'ShiftRight': shiftPressed = false; break;
             }
         };
 
@@ -460,22 +675,63 @@
         document.addEventListener('keyup', onKeyUp);
 
         document.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement !== document.body) return;
+            if (document.pointerLockElement !== document.body || isCraftingOpen) return;
 
             interactionRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
-            const hits = interactionRaycaster.intersectObjects(objects);
+            
+            // DAMAGE HIT BOX LOGIC
+            const monsterMeshes = monsters.map(m => m.mesh);
+            const monsterHits = interactionRaycaster.intersectObjects(monsterMeshes);
 
-            if (hits.length > 0 && hits[0].distance < 5.5) {
+            if (monsterHits.length > 0 && monsterHits[0].distance < 4.0 && e.button === 0) {
+                const hitMesh = monsterHits[0].object;
+                const monsterObj = monsters.find(m => m.mesh === hitMesh);
+                if (monsterObj) {
+                    monsterObj.health--;
+                    const kbDir = hitMesh.position.clone().sub(camera.position).setY(0).normalize();
+                    monsterObj.velocity.addScaledVector(kbDir, 7.0);
+                    monsterObj.velocity.y = 3.0;
+
+                    if(monsterObj.health <= 0) {
+                        scene.remove(hitMesh);
+                        monsters.splice(monsters.indexOf(monsterObj), 1);
+                    }
+                }
+                return;
+            }
+
+            // HIT MESH MODIFICATIONS
+            const hits = interactionRaycaster.intersectObjects(objects);
+            // Long range reaches unlocked inside creative or peaceful blueprints
+            const maxReach = (gameMode === "creative" || gameMode === "peaceful") ? 10.0 : 4.0;
+
+            if (hits.length > 0 && hits[0].distance < maxReach) {
                 const targetedMesh = hits[0].object;
 
                 if (e.button === 0) { 
                     if (targetedMesh.position.y <= BEDROCK_Y) return; 
+                    if (targetedMesh.name === "water") return;
+
+                    if (gameMode === "survival") {
+                        if(inventory[targetedMesh.name] !== undefined) {
+                            inventory[targetedMesh.name] += 1;
+                        }
+                    }
 
                     scene.remove(targetedMesh);
+                    
                     const idx = objects.indexOf(targetedMesh);
                     if(idx > -1) objects.splice(idx, 1);
+                    if(targetedMesh.name === "torch") {
+                        const tIdx = torches.indexOf(targetedMesh);
+                        if(tIdx > -1) torches.splice(tIdx, 1);
+                    }
+                    
+                    buildHotbarUI();
                 } 
                 else if (e.button === 2) { 
+                    if (gameMode === "survival" && inventory[currentBlockType] <= 0) return;
+
                     const normal = hits[0].face.normal.clone();
                     const spawnPos = targetedMesh.position.clone().add(normal);
 
@@ -483,6 +739,11 @@
                     if(spawnPos.distanceTo(playerFloorPos) < 1 && normal.y === -1) return; 
 
                     createBlock(spawnPos.x, spawnPos.y, spawnPos.z, currentBlockType);
+                    
+                    if (gameMode === "survival") {
+                        inventory[currentBlockType] -= 1;
+                    }
+                    buildHotbarUI();
                 }
             }
         });
@@ -490,14 +751,18 @@
         document.addEventListener('contextmenu', e => e.preventDefault());
 
         const instructions = document.getElementById('instructions');
-        instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
+        instructions.addEventListener('click', () => { if(!isCraftingOpen) document.body.requestPointerLock(); });
         document.addEventListener('pointerlockchange', () => {
             if(document.getElementById('loading-screen').style.display !== 'none') return;
-            instructions.style.display = (document.pointerLockElement === document.body) ? 'none' : 'block';
+            if (document.pointerLockElement !== document.body && !isCraftingOpen) {
+                instructions.style.display = 'block';
+            } else {
+                instructions.style.display = 'none';
+            }
         });
 
         document.addEventListener('mousemove', (event) => {
-            if (document.pointerLockElement !== document.body) return;
+            if (document.pointerLockElement !== document.body || isCraftingOpen) return;
             camera.rotation.y -= event.movementX * 0.002;
             camera.rotation.x -= event.movementY * 0.002;
             camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
@@ -505,7 +770,6 @@
 
         camera.rotation.order = "YXZ";
 
-        // FIX: Added water detection to check if player box intersects a water tile
         function checkIsInWater(px, py, pz) {
             const pMinX = px - PLAYER_RADIUS, pMaxX = px + PLAYER_RADIUS;
             const pMinZ = pz - PLAYER_RADIUS, pMaxZ = pz + PLAYER_RADIUS;
@@ -525,46 +789,168 @@
             return false;
         }
 
-        function checkBlockOverlap(px, py, pz) {
+        function findOverlappingSolidBlock(px, py, pz) {
             const pMinX = px - PLAYER_RADIUS, pMaxX = px + PLAYER_RADIUS;
             const pMinZ = pz - PLAYER_RADIUS, pMaxZ = pz + PLAYER_RADIUS;
             const pMinY = py - PLAYER_HEIGHT_EYES, pMaxY = py + (PLAYER_TOTAL_HEIGHT - PLAYER_HEIGHT_EYES);
 
             for (let i = 0; i < objects.length; i++) {
                 const obj = objects[i];
-                if (obj.name === "water") continue; // Water is ignored by hard collision physics now!
+                if (obj.name === "water" || obj.name === "torch") continue; 
 
                 const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
                 if (pMaxX > bx - 0.5 && pMinX < bx + 0.5 &&
                     pMaxY > by - 0.5 && pMinY < by + 0.5 &&
                     pMaxZ > bz - 0.5 && pMinZ < bz + 0.5) {
-                    return true; 
+                    return obj; 
                 }
+            }
+            return null;
+        }
+
+        function isPositionLit(pos) {
+            for(let i=0; i < torches.length; i++) {
+                if(pos.distanceTo(torches[i].position) < 6.5) return true;
             }
             return false;
         }
 
-        // --- 7. GAME LOOP ---
+        let monsterDamageCooldown = 0;
+
+        // --- 8. RUNTIME RENDERING AND LOOPS ---
         function animate() {
             requestAnimationFrame(animate);
 
-            if (document.pointerLockElement === document.body) {
-                const delta = clock.getDelta();
+            const delta = Math.min(clock.getDelta(), 0.1); 
 
-                // Check fluid context state
+            if (document.pointerLockElement === document.body && !isCraftingOpen) {
+                
+                // CELESTIAL TIMELINES
+                worldTime += delta * 0.015; 
+                if(worldTime > 2.0) worldTime -= 2.0;
+
+                let skyIntensity = Math.sin(worldTime * Math.PI); 
+                if (skyIntensity < -0.2) skyIntensity = -0.2; 
+
+                isNight = skyIntensity <= 0.0;
+                document.getElementById('time-badge').innerText = `TIME: ${isNight ? "NIGHT 🌙" : "DAY ☀️"}`;
+
+                const clrVal = Math.max(0.08, (skyIntensity + 0.2) / 1.2);
+                scene.background.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clVal);
+                scene.fog.color.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clVal);
+                ambientLight.intensity = 0.15 + 0.6 * Math.max(0, skyIntensity);
+                directionalLight.intensity = 0.45 * Math.max(0, skyIntensity);
+
+                // ENEMY CLEANING LOOP FOR PEACEFUL INTERACTION METRICS
+                if (gameMode === "peaceful" && monsters.length > 0) {
+                    for(let i = monsters.length - 1; i >= 0; i--) scene.remove(monsters[i].mesh);
+                    monsters.length = 0;
+                }
+
+                // AI SPAWNING SYSTEM
+                if (isNight && gameMode === "survival") {
+                    monsterSpawnTimer += delta;
+                    if (monsterSpawnTimer > 4.0 && monsters.length < 8) { 
+                        monsterSpawnTimer = 0;
+                        const randBlock = objects[Math.floor(Math.random() * objects.length)];
+                        if (randBlock && randBlock.name !== "water" && randBlock.name !== "torch" && randBlock.position.y > -4) {
+                            const spawnPos = randBlock.position.clone().add(new THREE.Vector3(0, 1, 0));
+                            if (!isPositionLit(spawnPos) && spawnPos.distanceTo(camera.position) > 8.0) {
+                                spawnMonster(spawnPos.x, spawnPos.y, spawnPos.z);
+                            }
+                        }
+                    }
+                } else if (!isNight && monsters.length > 0) {
+                    for(let i = monsters.length - 1; i >= 0; i--) {
+                        scene.remove(monsters[i].mesh);
+                    }
+                    monsters.length = 0;
+                }
+
+                if (monsterDamageCooldown > 0) monsterDamageCooldown -= delta;
+
+                for (let i = monsters.length - 1; i >= 0; i--) {
+                    const m = monsters[i];
+                    
+                    m.velocity.x -= m.velocity.x * 5.0 * delta;
+                    m.velocity.z -= m.velocity.z * 5.0 * delta;
+                    m.velocity.y -= GRAVITY * delta;
+
+                    const toPlayer = camera.position.clone().sub(m.mesh.position);
+                    toPlayer.y = 0; 
+                    const dist = toPlayer.length();
+
+                    if (dist < 14.0 && gameMode === "survival") { 
+                        toPlayer.normalize();
+                        m.velocity.x += toPlayer.x * 16.0 * delta;
+                        m.velocity.z += toPlayer.z * 16.0 * delta;
+
+                        const checkAhead = m.mesh.position.clone().addScaledVector(toPlayer, 0.6);
+                        if (findOverlappingSolidBlock(checkAhead.x, m.mesh.position.y, checkAhead.z)) {
+                            if (m.mesh.position.y - Math.floor(m.mesh.position.y) < 0.1) {
+                                m.velocity.y = 5.0;
+                            }
+                        }
+                    }
+
+                    m.mesh.position.x += m.velocity.x * delta;
+                    m.mesh.position.z += m.velocity.z * delta;
+                    m.mesh.position.y += m.velocity.y * delta;
+
+                    let mFloor = findOverlappingSolidBlock(m.mesh.position.x, m.mesh.position.y - 0.7, m.mesh.position.z);
+                    if (mFloor && m.velocity.y <= 0) {
+                        m.velocity.y = 0;
+                        m.mesh.position.y = mFloor.position.y + 0.5 + 0.8;
+                    }
+
+                    if (dist < 1.2 && gameMode === "survival" && monsterDamageCooldown <= 0) {
+                        playerHealth -= 4; 
+                        monsterDamageCooldown = 0.8; 
+                        document.getElementById('health-bar').style.width = `${(playerHealth/maxHealth)*100}%`;
+
+                        const pKb = camera.position.clone().sub(m.mesh.position).setY(0).normalize();
+                        velocity.addScaledVector(pKb, 8.0);
+                        velocity.y = 3.5;
+
+                        if (playerHealth <= 0) { 
+                            alert("James has fallen in battle! Respawning...");
+                            playerHealth = maxHealth;
+                            document.getElementById('health-bar').style.width = '100%';
+                            camera.position.set(0, 8, 0);
+                            velocity.set(0,0,0);
+                        }
+                    }
+                }
+
+                // VELOCITY DYNAMICS PARSING
                 const inWater = checkIsInWater(camera.position.x, camera.position.y, camera.position.z);
 
-                // Apply dynamic fluid friction / dampening
-                const currentFriction = inWater ? friction * 1.8 : friction;
-                velocity.x -= velocity.x * currentFriction * delta;
-                velocity.z -= velocity.z * friction * delta; // standard lateral decay
+                // Both survival and peaceful share grounding properties
+                const matchesGroundPhysics = (gameMode === "survival" || gameMode === "peaceful");
 
-                // Apply dynamic gravity (buoyancy)
-                if (inWater) {
-                    velocity.y -= (GRAVITY * 0.25) * delta; // Sink slower in water
-                    if (velocity.y < -3.0) velocity.y = -3.0; // Terminal velocity cap in liquid
+                const currentFriction = (inWater && matchesGroundPhysics) ? friction * 1.8 : friction;
+                velocity.x -= velocity.x * currentFriction * delta;
+                velocity.z -= velocity.z * friction * delta; 
+
+                if (gameMode === "creative") {
+                    velocity.y -= velocity.y * friction * delta; 
+                    if (spacePressed) velocity.y = 8.0;
+                    else if (shiftPressed) velocity.y = -8.0;
                 } else {
-                    velocity.y -= GRAVITY * delta; // Normal air physics
+                    if (inWater) {
+                        velocity.y -= (GRAVITY * 0.25) * delta; 
+                        if (velocity.y < -3.0) velocity.y = -3.0; 
+                    } else {
+                        velocity.y -= GRAVITY * delta; 
+                    }
+
+                    if (spacePressed) {
+                        if (inWater) velocity.y = 2.5;
+                        else if (canJump) {
+                            velocity.y = JUMP_FORCE; 
+                            canJump = false;
+                        }
+                    }
                 }
 
                 const frontVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
@@ -577,34 +963,26 @@
                 if (moveLeft) moveVector.sub(sideVector);
                 moveVector.normalize();
 
-                // Apply dynamic acceleration speeds
-                const currentSpeed = inWater ? speed * 0.4 : speed; 
+                let currentSpeed = speed;
+                if (gameMode === "creative") currentSpeed = speed * 1.6;
+                else if (inWater) currentSpeed = speed * 0.4;
+
                 if (moveForward || moveBackward || moveRight || moveLeft) {
                     velocity.x += moveVector.x * currentSpeed * 4.0 * delta;
                     velocity.z += moveVector.z * currentSpeed * 4.0 * delta;
-                }
-
-                // Handle Input Actions (Jump vs Swim up)
-                if (spacePressed) {
-                    if (inWater) {
-                        velocity.y = 2.5; // Upward swim impulse force loop
-                    } else if (canJump) {
-                        velocity.y = JUMP_FORCE; // Standard solid ground leap
-                        canJump = false;
-                    }
                 }
 
                 let newPosX = camera.position.x + velocity.x * delta;
                 let newPosY = camera.position.y;
                 let newPosZ = camera.position.z + velocity.z * delta;
 
-                if (!checkBlockOverlap(newPosX, camera.position.y, camera.position.z)) {
+                if (!findOverlappingSolidBlock(newPosX, camera.position.y, camera.position.z)) {
                     camera.position.x = newPosX;
                 } else {
                     velocity.x = 0; 
                 }
 
-                if (!checkBlockOverlap(camera.position.x, camera.position.y, newPosZ)) {
+                if (!findOverlappingSolidBlock(camera.position.x, camera.position.y, newPosZ)) {
                     camera.position.z = newPosZ;
                 } else {
                     velocity.z = 0; 
@@ -613,13 +991,14 @@
                 let targetY = camera.position.y + velocity.y * delta;
                 
                 if (velocity.y < 0) { 
-                    if (checkBlockOverlap(camera.position.x, targetY, camera.position.z)) {
+                    let floorBlock = findOverlappingSolidBlock(camera.position.x, targetY, camera.position.z);
+                    if (floorBlock) {
                         velocity.y = 0;
                         canJump = true;
-                        targetY = Math.floor(camera.position.y - PLAYER_HEIGHT_EYES + 0.5) + PLAYER_HEIGHT_EYES;
+                        targetY = floorBlock.position.y + 0.5 + PLAYER_HEIGHT_EYES;
                     }
                 } else if (velocity.y > 0) { 
-                    if (checkBlockOverlap(camera.position.x, targetY, camera.position.z)) {
+                    if (findOverlappingSolidBlock(camera.position.x, targetY, camera.position.z)) {
                         velocity.y = 0; 
                     }
                 }
@@ -640,6 +1019,9 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        buildHotbarUI();
+        document.getElementById('health-bar').style.width = '100%';
 
         animate();
     </script>
