@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RockisDirt</title>
+    <title>RockisDirt - voxel.io</title>
     <style>
         body {
             margin: 0;
@@ -212,7 +212,7 @@
     <div id="hud">
         <div id="mode-badge" class="hud-panel">MODE: SURVIVAL</div>
         <div id="health-panel" class="hud-panel">
-            HEALTH
+            HEALTH (JAMES)
             <div id="health-bar-container"><div id="health-bar"></div></div>
         </div>
         <div id="time-badge" class="hud-panel">TIME: DAY</div>
@@ -230,8 +230,8 @@
     </div>
     
     <div id="instructions">
-        <h1>RockisDirt</h1>
-        <p style="font-size: 16px; color: #aaa;">Featuring James</p>
+        <h1>voxel.io</h1>
+        <p style="font-size: 16px; color: #aaa;">RockisDirt - Guiding James</p>
         <p>Click anywhere to play</p>
         <p style="font-size: 14px; color: #ccc;">
             <b>W, A, S, D</b> - Move | <b>Spacebar</b> - Jump / Fly Up<br>
@@ -259,7 +259,8 @@
         let messageIdx = 0;
         const msgInterval = setInterval(() => {
             messageIdx = (messageIdx + 1) % loadingMessages.length;
-            document.getElementById('loading-text').innerText = loadingMessages[messageIdx];
+            const textEl = document.getElementById('loading-text');
+            if (textEl) textEl.innerText = loadingMessages[messageIdx];
         }, 400);
 
         // --- 1. SETUP GAME CANVAS ---
@@ -278,7 +279,7 @@
         directionalLight.position.set(15, 40, 20);
         scene.add(directionalLight);
 
-        // --- 2. PALETTES ---
+        // --- 2. TEXTURE PALETTES ---
         const PALETTES = {
             "grass_side": [
                 ["#2E8B57", "#3CB371", "#2E8B57", "#3CB371"],
@@ -390,7 +391,7 @@
             "torch": mats.torch
         };
 
-        // --- 4. THE ITEM INVENTORY ---
+        // --- 4. ITEM INVENTORY ---
         const BLOCK_TYPES = ["dirt", "grass", "stone", "wood", "leaves", "sand", "torch"];
         let currentBlockType = "dirt";
 
@@ -406,6 +407,7 @@
 
         function buildHotbarUI() {
             const hotbarEl = document.getElementById('hotbar');
+            if(!hotbarEl) return;
             hotbarEl.innerHTML = '';
             
             BLOCK_TYPES.forEach((type, index) => {
@@ -423,7 +425,6 @@
 
                 const countEl = document.createElement('div');
                 countEl.className = 'slot-count';
-                // Infinite resources display for Creative OR Peaceful modes
                 countEl.innerText = (gameMode === "creative" || gameMode === "peaceful") ? "∞" : inventory[type];
 
                 slot.appendChild(num);
@@ -533,6 +534,11 @@
             }
         }
 
+        // Clear loading screen once generator loops finish
+        clearInterval(msgInterval);
+        const ls = document.getElementById('loading-screen');
+        if(ls) ls.style.display = 'none';
+
         // --- 6. MONSTER SYSTEM ---
         const monsters = [];
         const monsterGeo = new THREE.BoxGeometry(0.8, 1.6, 0.8);
@@ -559,10 +565,9 @@
             });
         }
 
-        // --- 7. PLAYER MOVEMENT & CONTROLS ---
+        // --- 7. PLAYER CONTROLS & REFACTORED AABB HITBOX PHYSICS ---
         camera.position.set(0, 8, 0); 
 
-        // GAME MODES: "survival", "creative", "peaceful"
         let gameMode = "survival";
         let playerHealth = 20;
         const maxHealth = 20;
@@ -584,26 +589,53 @@
         let clock = new THREE.Clock();
         const interactionRaycaster = new THREE.Raycaster();
 
+        // Stricter Axis-Aligned Bounding Box (AABB) Collision Detector
+        function findOverlappingSolidBlock(px, py, pz) {
+            const pMinX = px - PLAYER_RADIUS + 0.001;
+            const pMaxX = px + PLAYER_RADIUS - 0.001;
+            const pMinZ = pz - PLAYER_RADIUS + 0.001;
+            const pMaxZ = pz + PLAYER_RADIUS - 0.001;
+            const pMinY = py - PLAYER_HEIGHT_EYES + 0.001;
+            const pMaxY = py + (PLAYER_TOTAL_HEIGHT - PLAYER_HEIGHT_EYES) - 0.001;
+
+            for (let i = 0; i < objects.length; i++) {
+                const obj = objects[i];
+                if (obj.name === "water" || obj.name === "torch") continue; 
+
+                const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
+                const bMinX = bx - 0.5, bMaxX = bx + 0.5;
+                const bMinZ = bz - 0.5, bMaxZ = bz + 0.5;
+
+                if (pMaxX > bMinX && pMinX < bMaxX &&
+                    pMaxY > by - 0.5 && pMinY < by + 0.5 &&
+                    pMaxZ > bMinZ && pMinZ < bMaxZ) {
+                    return obj; 
+                }
+            }
+            return null;
+        }
+
         function updateCraftingUI() {
             const matDiv = document.getElementById('craft-materials');
-            matDiv.innerHTML = `Your Inventory: <br>
-                <span style="color: ${inventory.wood >= 1 ? '#55ff55' : '#ff5555'}">Wood: ${inventory.wood}/1</span> | 
-                <span style="color: ${inventory.stone >= 1 ? '#55ff55' : '#ff5555'}">Stone: ${inventory.stone}/1</span>`;
+            if(matDiv) {
+                matDiv.innerHTML = `Your Inventory: <br>
+                    <span style="color: ${inventory.wood >= 1 ? '#55ff55' : '#ff5555'}">Wood: ${inventory.wood}/1</span> | 
+                    <span style="color: ${inventory.stone >= 1 ? '#55ff55' : '#ff5555'}">Stone: ${inventory.stone}/1</span>`;
+            }
         }
 
         function toggleCraftingMenu() {
-            // Crafting only serves survival cycles
             if (gameMode !== "survival") return;
 
             isCraftingOpen = !isCraftingOpen;
             const menu = document.getElementById('crafting-menu');
             
             if(isCraftingOpen) {
-                menu.style.display = 'block';
+                if(menu) menu.style.display = 'block';
                 updateCraftingUI();
                 document.exitPointerLock();
             } else {
-                menu.style.display = 'none';
+                if(menu) menu.style.display = 'none';
                 document.body.requestPointerLock();
             }
         }
@@ -632,7 +664,6 @@
                     toggleCraftingMenu();
                     break;
                 case 'KeyP':
-                    // Active peaceful core layout rule overrides
                     gameMode = "peaceful";
                     document.getElementById('mode-badge').innerText = `MODE: ${gameMode.toUpperCase()}`;
                     playerHealth = maxHealth;
@@ -679,7 +710,6 @@
 
             interactionRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
             
-            // DAMAGE HIT BOX LOGIC
             const monsterMeshes = monsters.map(m => m.mesh);
             const monsterHits = interactionRaycaster.intersectObjects(monsterMeshes);
 
@@ -700,9 +730,7 @@
                 return;
             }
 
-            // HIT MESH MODIFICATIONS
             const hits = interactionRaycaster.intersectObjects(objects);
-            // Long range reaches unlocked inside creative or peaceful blueprints
             const maxReach = (gameMode === "creative" || gameMode === "peaceful") ? 10.0 : 4.0;
 
             if (hits.length > 0 && hits[0].distance < maxReach) {
@@ -751,13 +779,17 @@
         document.addEventListener('contextmenu', e => e.preventDefault());
 
         const instructions = document.getElementById('instructions');
-        instructions.addEventListener('click', () => { if(!isCraftingOpen) document.body.requestPointerLock(); });
+        if(instructions) {
+            instructions.addEventListener('click', () => { if(!isCraftingOpen) document.body.requestPointerLock(); });
+        }
+        
         document.addEventListener('pointerlockchange', () => {
-            if(document.getElementById('loading-screen').style.display !== 'none') return;
+            const instr = document.getElementById('instructions');
+            if(!instr) return;
             if (document.pointerLockElement !== document.body && !isCraftingOpen) {
-                instructions.style.display = 'block';
+                instr.style.display = 'block';
             } else {
-                instructions.style.display = 'none';
+                instr.style.display = 'none';
             }
         });
 
@@ -789,25 +821,6 @@
             return false;
         }
 
-        function findOverlappingSolidBlock(px, py, pz) {
-            const pMinX = px - PLAYER_RADIUS, pMaxX = px + PLAYER_RADIUS;
-            const pMinZ = pz - PLAYER_RADIUS, pMaxZ = pz + PLAYER_RADIUS;
-            const pMinY = py - PLAYER_HEIGHT_EYES, pMaxY = py + (PLAYER_TOTAL_HEIGHT - PLAYER_HEIGHT_EYES);
-
-            for (let i = 0; i < objects.length; i++) {
-                const obj = objects[i];
-                if (obj.name === "water" || obj.name === "torch") continue; 
-
-                const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
-                if (pMaxX > bx - 0.5 && pMinX < bx + 0.5 &&
-                    pMaxY > by - 0.5 && pMinY < by + 0.5 &&
-                    pMaxZ > bz - 0.5 && pMinZ < bz + 0.5) {
-                    return obj; 
-                }
-            }
-            return null;
-        }
-
         function isPositionLit(pos) {
             for(let i=0; i < torches.length; i++) {
                 if(pos.distanceTo(torches[i].position) < 6.5) return true;
@@ -817,7 +830,7 @@
 
         let monsterDamageCooldown = 0;
 
-        // --- 8. RUNTIME RENDERING AND LOOPS ---
+        // --- 8. ENGINE RUNTIME INTERPOLATION ---
         function animate() {
             requestAnimationFrame(animate);
 
@@ -825,7 +838,7 @@
 
             if (document.pointerLockElement === document.body && !isCraftingOpen) {
                 
-                // CELESTIAL TIMELINES
+                // DAY / NIGHT SYSTEMS
                 worldTime += delta * 0.015; 
                 if(worldTime > 2.0) worldTime -= 2.0;
 
@@ -836,18 +849,18 @@
                 document.getElementById('time-badge').innerText = `TIME: ${isNight ? "NIGHT 🌙" : "DAY ☀️"}`;
 
                 const clrVal = Math.max(0.08, (skyIntensity + 0.2) / 1.2);
-                scene.background.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clVal);
-                scene.fog.color.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clVal);
+                scene.background.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clrVal);
+                scene.fog.color.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clrVal);
                 ambientLight.intensity = 0.15 + 0.6 * Math.max(0, skyIntensity);
                 directionalLight.intensity = 0.45 * Math.max(0, skyIntensity);
 
-                // ENEMY CLEANING LOOP FOR PEACEFUL INTERACTION METRICS
+                // ENEMY CLEANING LOOP FOR PEACEFUL MODE
                 if (gameMode === "peaceful" && monsters.length > 0) {
                     for(let i = monsters.length - 1; i >= 0; i--) scene.remove(monsters[i].mesh);
                     monsters.length = 0;
                 }
 
-                // AI SPAWNING SYSTEM
+                // AI MOB SPAWNING
                 if (isNight && gameMode === "survival") {
                     monsterSpawnTimer += delta;
                     if (monsterSpawnTimer > 4.0 && monsters.length < 8) { 
@@ -922,10 +935,8 @@
                     }
                 }
 
-                // VELOCITY DYNAMICS PARSING
+                // CONTROLLER VELOCITY PHYSICS (AABB FIXES INTEGRATED)
                 const inWater = checkIsInWater(camera.position.x, camera.position.y, camera.position.z);
-
-                // Both survival and peaceful share grounding properties
                 const matchesGroundPhysics = (gameMode === "survival" || gameMode === "peaceful");
 
                 const currentFriction = (inWater && matchesGroundPhysics) ? friction * 1.8 : friction;
@@ -972,30 +983,36 @@
                     velocity.z += moveVector.z * currentSpeed * 4.0 * delta;
                 }
 
+                // AXIS-SEPARATED AABB HITBOX MOVEMENT RESOLUTION
                 let newPosX = camera.position.x + velocity.x * delta;
-                let newPosY = camera.position.y;
                 let newPosZ = camera.position.z + velocity.z * delta;
 
+                // Move X axis independently
                 if (!findOverlappingSolidBlock(newPosX, camera.position.y, camera.position.z)) {
                     camera.position.x = newPosX;
                 } else {
                     velocity.x = 0; 
                 }
 
+                // Move Z axis independently
                 if (!findOverlappingSolidBlock(camera.position.x, camera.position.y, newPosZ)) {
                     camera.position.z = newPosZ;
                 } else {
                     velocity.z = 0; 
                 }
 
+                // Handle Y Axis & Floor Snapping precisely
                 let targetY = camera.position.y + velocity.y * delta;
                 
                 if (velocity.y < 0) { 
                     let floorBlock = findOverlappingSolidBlock(camera.position.x, targetY, camera.position.z);
                     if (floorBlock) {
-                        velocity.y = 0;
-                        canJump = true;
-                        targetY = floorBlock.position.y + 0.5 + PLAYER_HEIGHT_EYES;
+                        const blockTopSurface = floorBlock.position.y + 0.5;
+                        if ((camera.position.y - PLAYER_HEIGHT_EYES) >= blockTopSurface - 0.15) {
+                            velocity.y = 0;
+                            canJump = true;
+                            targetY = blockTopSurface + PLAYER_HEIGHT_EYES; 
+                        }
                     }
                 } else if (velocity.y > 0) { 
                     if (findOverlappingSolidBlock(camera.position.x, targetY, camera.position.z)) {
@@ -1021,7 +1038,12 @@
         });
 
         buildHotbarUI();
-        document.getElementById('health-bar').style.width = '100%';
+        const hb = document.getElementById('health-bar');
+        if(hb) hb.style.width = '100%';
+
+        // Instantly display the click instructions backdrop overlay
+        const instr = document.getElementById('instructions');
+        if(instr) instr.style.display = 'block';
 
         animate();
     </script>
