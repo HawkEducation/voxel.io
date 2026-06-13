@@ -3,1049 +3,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RockisDirt - voxel.io</title>
+    <title>2D Minecraft - HTML5 Canvas</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background-color: #87CEEB;
-            font-family: sans-serif;
-        }
-        #loading-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #111;
-            z-index: 100;
+            background-color: #222;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            color: white;
-            user-select: none;
-        }
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #333;
-            border-top: 5px solid #FFD700;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #loading-text {
-            font-size: 20px;
-            font-weight: bold;
-            color: #FFD700;
-            text-shadow: 1px 1px #000;
-        }
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 10px;
-            height: 10px;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-weight: bold;
-            font-size: 20px;
-            pointer-events: none;
-            user-select: none;
-            z-index: 10;
-        }
-        #instructions {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            background: rgba(0,0,0,0.8);
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            cursor: pointer;
-            user-select: none;
-            border: 2px solid #555;
-            z-index: 20;
-            display: none;
-        }
-        h1 {
-            margin-top: 0;
-            color: #FFD700; 
-            font-size: 36px;
-            text-shadow: 2px 2px #000;
-        }
-        #hud {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 10;
-            user-select: none;
-        }
-        .hud-panel {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 8px 14px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 14px;
-            border: 1px solid #555;
-        }
-        #health-bar-container {
-            width: 150px;
-            height: 14px;
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 3px;
+            height: 100vh;
+            font-family: Arial, sans-serif;
             overflow: hidden;
-            margin-top: 4px;
         }
-        #health-bar {
-            width: 100%;
-            height: 100%;
-            background: #ff3333;
-            transition: width 0.1s ease;
-        }
-        #crafting-menu {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(30, 30, 30, 0.95);
-            border: 3px solid #FFD700;
-            border-radius: 8px;
-            padding: 20px;
-            color: white;
-            z-index: 30;
-            display: none;
-            text-align: center;
-            user-select: none;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        }
-        #craft-btn {
-            background: #228B22;
-            color: white;
-            border: 2px solid #32CD32;
-            padding: 10px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-        #craft-btn:hover {
-            background: #2E8B57;
-        }
-        #hotbar {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            background: rgba(26, 26, 26, 0.85);
-            padding: 6px;
-            border-radius: 6px;
-            border: 3px solid #333;
-            user-select: none;
-            z-index: 10;
-        }
-        .slot {
-            width: 54px;
-            height: 54px;
-            margin: 0 4px;
-            background: #444;
-            border: 2px solid #888;
-            border-radius: 4px;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .slot.active {
-            border-color: #FF8800;
-            background: #555566;
-            box-shadow: 0 0 10px #FF8800;
-        }
-        .slot-num {
-            position: absolute;
-            top: 2px;
-            left: 4px;
-            color: #aaa;
-            font-size: 10px;
-            font-weight: bold;
-        }
-        .slot-count {
-            position: absolute;
-            bottom: 2px;
-            right: 4px;
-            color: #fff;
-            font-size: 11px;
-            font-weight: bold;
-            text-shadow: 1px 1px #000;
-        }
-        .slot-preview {
-            width: 32px;
-            height: 32px;
-            image-rendering: pixelated;
+        canvas {
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background-color: skyblue;
         }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <div class="spinner"></div>
-        <div id="loading-text">Mining water...</div>
-    </div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
 
-    <div id="crosshair">+</div>
-    
-    <div id="hud">
-        <div id="mode-badge" class="hud-panel">MODE: SURVIVAL</div>
-        <div id="health-panel" class="hud-panel">
-            HEALTH (JAMES)
-            <div id="health-bar-container"><div id="health-bar"></div></div>
-        </div>
-        <div id="time-badge" class="hud-panel">TIME: DAY</div>
-    </div>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-    <div id="crafting-menu">
-        <h2>Crafting Table</h2>
-        <p style="color: #aaa; font-size: 14px;">Recipe:</p>
-        <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; margin-bottom: 10px;">
-            <strong>1 Wood + 1 Stone ➔ 4 Torches</strong>
-        </div>
-        <div id="craft-materials" style="font-size: 14px; margin-bottom: 10px;"></div>
-        <button id="craft-btn">Craft Torches</button>
-        <p style="font-size: 12px; color: #888; margin-top: 15px;">Press 'C' or 'Escape' to Close</p>
-    </div>
-    
-    <div id="instructions">
-        <h1>voxel.io</h1>
-        <p style="font-size: 16px; color: #aaa;">RockisDirt - Guiding James</p>
-        <p>Click anywhere to play</p>
-        <p style="font-size: 14px; color: #ccc;">
-            <b>W, A, S, D</b> - Move | <b>Spacebar</b> - Jump / Fly Up<br>
-            <b>Shift</b> - Fly Down (Creative Only) | <b>M</b> - Toggle Survival/Creative<br>
-            <b>P</b> - Activate Peaceful (Classic Gravity) | <b>C</b> - Open Crafting<br>
-            <b>1 - 7</b> - Hotbar Selection | <b>Left Click</b> - Mine | <b>Right Click</b> - Place Block
-        </p>
-    </div>
+// --- 4x4 TEXTURE DATA ---
+const TEXTURES = {
+    "wood": [
+        ["#8B5A2B", "#A0522D", "#A0522D", "#8B5A2B"],
+        ["#CD853F", "#CD853F", "#8B5A2B", "#A0522D"],
+        ["#A0522D", "#8B5A2B", "#CD853F", "#CD853F"],
+        ["#8B5A2B", "#A0522D", "#A0522D", "#8B5A2B"]
+    ],
+    "grass": [
+        ["#2E8B57", "#3CB371", "#2E8B57", "#3CB371"],
+        ["#3CB371", "#228B22", "#228B22", "#2E8B57"],
+        ["#556B2F", "#8B5A2B", "#556B2F", "#8B5A2B"],
+        ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"]
+    ],
+    "water": [
+        ["#1E90FF", "#00BFFF", "#1E90FF", "#1E90FF"],
+        ["#00BFFF", "#4169E1", "#4169E1", "#00BFFF"],
+        ["#1E90FF", "#1E90FF", "#00BFFF", "#4169E1"],
+        ["#4169E1", "#00BFFF", "#1E90FF", "#1E90FF"]
+    ],
+    "sand": [
+        ["#F4A460", "#EDC9AF", "#EDC9AF", "#F4A460"],
+        ["#EDC9AF", "#F4A460", "#F4A460", "#EDC9AF"],
+        ["#F4A460", "#EDC9AF", "#EDC9AF", "#F4A460"],
+        ["#EDC9AF", "#F4A460", "#F4A460", "#EDC9AF"]
+    ],
+    "stone": [
+        ["#708090", "#808080", "#A9A9A9", "#708090"],
+        ["#808080", "#A9A9A9", "#708090", "#808080"],
+        ["#A9A9A9", "#708090", "#808080", "#A9A9A9"],
+        ["#708090", "#808080", "#A9A9A9", "#708090"]
+    ],
+    "dirt": [
+        ["#8B5A2B", "#5C4033", "#8B5A2B", "#5C4033"],
+        ["#5C4033", "#8B5A2B", "#5C4033", "#8B5A2B"],
+        ["#8B5A2B", "#5C4033", "#8B5A2B", "#5C4033"],
+        ["#5C4033", "#8B5A2B", "#5C4033", "#8B5A2B"]
+    ],
+    "leaves": [
+        ["#32CD32", "#228B22", "#32CD32", "#98FB98"],
+        ["#008000", "#006400", "#008000", "#32CD32"],
+        ["#228B22", "#008000", "#228B22", "#006400"],
+        ["#98FB98", "#32CD32", "#008000", "#228B22"]
+    ]
+};
 
-    <div id="hotbar"></div>
+const BLOCK_TYPES = ["wood", "grass", "water", "sand", "stone", "dirt", "leaves"];
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+const PIXEL_SIZE = 10;  
+const BLOCK_SIZE = 4;   
+const GRID_SIZE = BLOCK_SIZE * PIXEL_SIZE;  
 
-    <script>
-        // --- LOADING SCREEN SYSTEM ---
-        const loadingMessages = [
-            "Mining water...",
-            "Sifting desert sand...",
-            "Calming the night wildlife...",
-            "Assembling crafting modules...",
-            "Growing grass covers...",
-            "Sculpting rolling hills..."
+const WIDTH = 800;
+const HEIGHT = 600;
+
+const GRAVITY = 0.6;
+const JUMP_FORCE = -11;
+const MOVE_SPEED = 4;
+const PLAYER_WIDTH = 24;
+const PLAYER_HEIGHT = 40;  
+
+class Minecraft2D {
+    constructor() {
+        this.world = {};
+        this.current_block_type = "wood";
+        this.camera_x = 0;  
+        
+        this.player_x = WIDTH / 2;
+        this.player_y = 50;
+        this.player_vy = 0;  
+        this.on_ground = false;
+        
+        this.anim_frame = 0;
+        this.keys = { "a": false, "d": false };
+        
+        this.initEventListeners();
+        this.createBiomeWorld();
+        
+        // Start game loop
+        setInterval(() => this.gameLoop(), 20);
+    }
+
+    initEventListeners() {
+        // Keyboard inputs
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "a" || e.key === "A") this.keys["a"] = true;
+            if (e.key === "d" || e.key === "D") this.keys["d"] = true;
+            if (e.key === " ") {
+                this.jump();
+                e.preventDefault();
+            }
+            // Hotbar selection keys 1-7
+            if (e.key >= "1" && e.key <= "7") {
+                this.current_block_type = BLOCK_TYPES[parseInt(e.key) - 1];
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            if (e.key === "a" || e.key === "A") this.keys["a"] = false;
+            if (e.key === "d" || e.key === "D") this.keys["d"] = false;
+        });
+
+        // Mouse clicks (Left click to build, Right click to mine)
+        canvas.addEventListener("mousedown", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (e.button === 0) {
+                this.placeBlock(mouseX, mouseY);
+            } else if (e.button === 2 || e.button === 1) {
+                this.destroyBlock(mouseX, mouseY);
+            }
+        });
+
+        // Prevent browser context menu pops up on right click
+        canvas.addEventListener("contextmenu", e => e.preventDefault());
+    }
+
+    createBiomeWorld() {
+        const floor_y = Math.floor(HEIGHT / GRID_SIZE) - 3;
+        const rows = Math.floor(HEIGHT / GRID_SIZE);
+        
+        for (let x = -50; x <= 50; x++) {
+            let biome = "forest";
+            if (x < -15) biome = "ocean";
+            else if (x > 15) biome = "desert";
+                
+            if (biome === "ocean") {
+                this.world[`${x},${floor_y}`] = "water";
+                for (let y = floor_y + 1; y < rows; y++) {
+                    this.world[`${x},${y}`] = "sand";
+                }
+            } else if (biome === "desert") {
+                this.world[`${x},${floor_y}`] = "sand";
+                for (let y = floor_y + 1; y < rows; y++) {
+                    if (y > floor_y + 2) {
+                        this.world[`${x},${y}`] = "stone";
+                    } else {
+                        this.world[`${x},${y}`] = "sand";
+                    }
+                }
+            } else if (biome === "forest") {
+                this.world[`${x},${floor_y}`] = "grass";
+                for (let y = floor_y + 1; y < rows; y++) {
+                    this.world[`${x},${y}`] = "dirt";
+                }
+                
+                if (x !== 10 && x !== 9 && x !== 11 && Math.random() < 0.07) {
+                    this.growTree(x, floor_y - 1);
+                }
+            }
+        }
+    }
+
+    growTree(trunk_x, base_y) {
+        const tree_height = Math.floor(Math.random() * 2) + 2; // 2 or 3 blocks
+        for (let i = 0; i < tree_height; i++) {
+            this.world[`${trunk_x},${base_y - i}`] = "wood";
+        }
+        
+        const top_y = base_y - tree_height;
+        for (let leaf_x = trunk_x - 1; leaf_x <= trunk_x + 1; leaf_x++) {
+            for (let leaf_y = top_y - 1; leaf_y <= top_y; leaf_y++) {
+                if (!this.world[`${leaf_x},${leaf_y}`]) {
+                    this.world[`${leaf_x},${leaf_y}`] = "leaves";
+                }
+            }
+        }
+        
+        const extra_leaf_spots = [
+            [trunk_x, top_y - 2],
+            [trunk_x - 1, top_y],
+            [trunk_x + 1, top_y]
         ];
         
-        let messageIdx = 0;
-        const msgInterval = setInterval(() => {
-            messageIdx = (messageIdx + 1) % loadingMessages.length;
-            const textEl = document.getElementById('loading-text');
-            if (textEl) textEl.innerText = loadingMessages[messageIdx];
-        }, 400);
-
-        // --- 1. SETUP GAME CANVAS ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); 
-        scene.fog = new THREE.FogExp2(0x87CEEB, 0.03);
-
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.45);
-        directionalLight.position.set(15, 40, 20);
-        scene.add(directionalLight);
-
-        // --- 2. TEXTURE PALETTES ---
-        const PALETTES = {
-            "grass_side": [
-                ["#2E8B57", "#3CB371", "#2E8B57", "#3CB371"],
-                ["#3CB371", "#228B22", "#228B22", "#2E8B57"],
-                ["#556B2F", "#8B5A2B", "#556B2F", "#8B5A2B"],
-                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"]
-            ],
-            "grass_top": [
-                ["#2E8B57", "#3CB371", "#228B22", "#3CB371"],
-                ["#3CB371", "#2E8B57", "#3CB371", "#228B22"],
-                ["#228B22", "#3CB371", "#2E8B57", "#3CB371"],
-                ["#3CB371", "#228B22", "#3CB371", "#228B22"]
-            ],
-            "stone": [
-                ["#708090", "#808080", "#A9A9A9", "#708090"],
-                ["#808080", "#A9A9A9", "#708090", "#808080"],
-                ["#A9A9A9", "#708090", "#808080", "#A9A9A9"],
-                ["#708090", "#808080", "#A9A9A9", "#708090"]
-            ],
-            "dirt": [
-                ["#8B5A2B", "#5C4033", "#8B5A2B", "#5C4033"],
-                ["#5C4033", "#8B5A2B", "#5C4033", "#8B5A2B"],
-                ["#8B5A2B", "#5C4033", "#8B5A2B", "#5C4033"],
-                ["#5C4033", "#8B5A2B", "#5C4033", "#8B5A2B"]
-            ],
-            "wood": [
-                ["#8B5A2B", "#A0522D", "#A0522D", "#8B5A2B"],
-                ["#CD853F", "#CD853F", "#8B5A2B", "#A0522D"],
-                ["#A0522D", "#8B5A2B", "#CD853F", "#CD853F"],
-                ["#8B5A2B", "#A0522D", "#A0522D", "#8B5A2B"]
-            ],
-            "leaves": [
-                ["#32CD32", "#228B22", "#32CD32", "#98FB98"],
-                ["#008000", "#006400", "#008000", "#32CD32"],
-                ["#228B22", "#008000", "#228B22", "#006400"],
-                ["#98FB98", "#32CD32", "#008000", "#228B22"]
-            ],
-            "sand": [
-                ["#F4A460", "#EDC9AF", "#EDC9AF", "#F4A460"],
-                ["#EDC9AF", "#F4A460", "#F4A460", "#EDC9AF"],
-                ["#F4A460", "#EDC9AF", "#EDC9AF", "#F4A460"],
-                ["#EDC9AF", "#F4A460", "#F4A460", "#EDC9AF"]
-            ],
-            "water": [
-                ["#1E90FF", "#00BFFF", "#1E90FF", "#1E90FF"],
-                ["#00BFFF", "#4169E1", "#4169E1", "#00BFFF"],
-                ["#1E90FF", "#1E90FF", "#00BFFF", "#4169E1"],
-                ["#4169E1", "#00BFFF", "#1E90FF", "#1E90FF"]
-            ],
-            "torch": [
-                ["#FFCC00", "#FF6600", "#FFCC00", "#FF6600"],
-                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"],
-                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"],
-                ["#8B5A2B", "#8B5A2B", "#8B5A2B", "#8B5A2B"]
-            ]
-        };
-
-        // --- 3. TEXTURE GENERATOR ---
-        const textureCanvases = {};
-
-        function makeBlockTexture(patternName, transparent = false) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 32;
-            canvas.height = 32;
-            const ctx = canvas.getContext('2d');
-            const matrix = PALETTES[patternName];
-            const size = 8; 
-
-            for (let r = 0; r < 4; r++) {
-                for (let c = 0; c < 4; c++) {
-                    ctx.fillStyle = matrix[r][c];
-                    ctx.fillRect(c * size, r * size, size, size);
-                }
-            }
-
-            textureCanvases[patternName] = canvas.toDataURL();
-
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.magFilter = THREE.NearestFilter; 
-            texture.minFilter = THREE.NearestFilter;
-            
-            return new THREE.MeshLambertMaterial({ 
-                map: texture, 
-                transparent: transparent, 
-                opacity: transparent ? 0.6 : 1.0 
-            });
-        }
-
-        const mats = {
-            grassSide: makeBlockTexture("grass_side"),
-            grassTop: makeBlockTexture("grass_top"),
-            stone: makeBlockTexture("stone"),
-            dirt: makeBlockTexture("dirt"),
-            wood: makeBlockTexture("wood"),
-            leaves: makeBlockTexture("leaves"),
-            sand: makeBlockTexture("sand"),
-            water: makeBlockTexture("water", true),
-            torch: makeBlockTexture("torch")
-        };
-
-        const blockMaterials = {
-            "grass": [mats.grassSide, mats.grassSide, mats.grassTop, mats.dirt, mats.grassSide, mats.grassSide],
-            "dirt": mats.dirt,
-            "stone": mats.stone,
-            "wood": mats.wood,
-            "leaves": mats.leaves,
-            "sand": mats.sand,
-            "water": mats.water,
-            "torch": mats.torch
-        };
-
-        // --- 4. ITEM INVENTORY ---
-        const BLOCK_TYPES = ["dirt", "grass", "stone", "wood", "leaves", "sand", "torch"];
-        let currentBlockType = "dirt";
-
-        const inventory = {
-            "dirt": 0,
-            "grass": 0,
-            "stone": 0,
-            "wood": 0,
-            "leaves": 0,
-            "sand": 0,
-            "torch": 0 
-        };
-
-        function buildHotbarUI() {
-            const hotbarEl = document.getElementById('hotbar');
-            if(!hotbarEl) return;
-            hotbarEl.innerHTML = '';
-            
-            BLOCK_TYPES.forEach((type, index) => {
-                const slot = document.createElement('div');
-                slot.className = `slot ${type === currentBlockType ? 'active' : ''}`;
-                slot.id = `slot-${index + 1}`;
-
-                const num = document.createElement('div');
-                num.className = 'slot-num';
-                num.innerText = index + 1;
-
-                const img = document.createElement('img');
-                img.className = 'slot-preview';
-                img.src = textureCanvases[type === 'grass' ? 'grass_top' : type];
-
-                const countEl = document.createElement('div');
-                countEl.className = 'slot-count';
-                countEl.innerText = (gameMode === "creative" || gameMode === "peaceful") ? "∞" : inventory[type];
-
-                slot.appendChild(num);
-                slot.appendChild(img);
-                slot.appendChild(countEl);
-                hotbarEl.appendChild(slot);
-            });
-        }
-
-        function switchBlockIndex(index) {
-            if(index >= 0 && index < BLOCK_TYPES.length) {
-                currentBlockType = BLOCK_TYPES[index];
-                buildHotbarUI();
+        for (let [lx, ly] of extra_leaf_spots) {
+            if (!this.world[`${lx},${ly}`]) {
+                this.world[`${lx},${ly}`] = "leaves";
             }
         }
+    }
 
-        // --- 5. WORLD GENERATOR ---
-        const blockGeo = new THREE.BoxGeometry(1, 1, 1);
-        const torchGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
-        const worldSize = 30;
-        const objects = []; 
-        const torches = [];
-        const BEDROCK_Y = -12; 
-
-        function createBlock(x, y, z, type) {
-            let isTorch = type === "torch";
-            const materialData = blockMaterials[type];
-            const block = new THREE.Mesh(isTorch ? torchGeo : blockGeo, materialData);
-            block.position.set(x, isTorch ? y + 0.3 : y, z);
-            block.name = type; 
-            scene.add(block);
-            objects.push(block);
-
-            if (isTorch) {
-                torches.push(block);
-            }
-        }
-
-        const WATER_CEILING_Y = -1; 
-
-        for (let x = -worldSize/2; x < worldSize/2; x++) {
-            for (let z = -worldSize/2; z < worldSize/2; z++) {
-                
-                let terrainType = "forest";
-                if (x < -8) {
-                    terrainType = "ocean";
-                } else if (x >= -8 && x <= -5) {
-                    terrainType = "beach";
-                } else if (x > 6) {
-                    terrainType = "desert";
-                }
-
-                if (terrainType === "ocean") {
-                    let seabedSurfaceY = Math.floor(Math.sin(x * 0.2) * 1.5 + Math.cos(z * 0.2) * 1.5) - 4;
-                    if (seabedSurfaceY >= WATER_CEILING_Y) seabedSurfaceY = WATER_CEILING_Y - 1;
-
-                    for (let y = seabedSurfaceY; y >= seabedSurfaceY - 4; y--) createBlock(x, y, z, "sand");
-                    for (let y = seabedSurfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
-                    
-                    for (let y = WATER_CEILING_Y; y > seabedSurfaceY; y--) {
-                        const block = new THREE.Mesh(blockGeo, blockMaterials["water"]);
-                        block.position.set(x, y, z);
-                        block.name = "water";
-                        scene.add(block);
-                        objects.push(block);
-                    }
-                } 
-                else if (terrainType === "beach") {
-                    createBlock(x, WATER_CEILING_Y, z, "sand");
-                    for (let y = WATER_CEILING_Y - 1; y >= WATER_CEILING_Y - 4; y--) createBlock(x, y, z, "sand");
-                    for (let y = WATER_CEILING_Y - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
-                }
-                else if (terrainType === "desert") {
-                    let surfaceY = Math.floor(Math.sin(x * 0.15) * 2.0 + Math.cos(z * 0.15) * 2.0);
-                    for (let y = surfaceY; y >= surfaceY - 4; y--) createBlock(x, y, z, "sand");
-                    for (let y = surfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
-                } 
-                else { 
-                    let rawSurfaceY = Math.sin(x * 0.2) * 1.5 + Math.cos(z * 0.2) * 1.5;
-                    
-                    if (x >= -4 && x <= -1) {
-                        let t = (x - (-5)) / 4; 
-                        rawSurfaceY = THREE.MathUtils.lerp(WATER_CEILING_Y, rawSurfaceY, t);
-                    }
-
-                    let surfaceY = Math.floor(rawSurfaceY);
-                    if (surfaceY < WATER_CEILING_Y) surfaceY = WATER_CEILING_Y;
-
-                    createBlock(x, surfaceY, z, "grass");
-                    for (let y = surfaceY - 1; y >= surfaceY - 4; y--) createBlock(x, y, z, "dirt");
-                    for (let y = surfaceY - 5; y >= BEDROCK_Y; y--) createBlock(x, y, z, "stone");
-
-                    if (x > 1 && z !== 0 && Math.random() < 0.04) {
-                        let trunkH = Math.floor(Math.random() * 2) + 3;
-                        for (let th = 1; th <= trunkH; th++) createBlock(x, surfaceY + th, z, "wood");
-                        let leafTop = surfaceY + trunkH;
-                        for (let lx = -1; lx <= 1; lx++) {
-                            for (let lz = -1; lz <= 1; lz++) {
-                                for (let ly = 0; ly <= 1; ly++) {
-                                    if(lx === 0 && lz === 0 && ly === 0) continue;
-                                    createBlock(x + lx, leafTop + ly, z + lz, "leaves");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Clear loading screen once generator loops finish
-        clearInterval(msgInterval);
-        const ls = document.getElementById('loading-screen');
-        if(ls) ls.style.display = 'none';
-
-        // --- 6. MONSTER SYSTEM ---
-        const monsters = [];
-        const monsterGeo = new THREE.BoxGeometry(0.8, 1.6, 0.8);
+    drawBlock(grid_x, grid_y, block_type) {
+        const start_x = (grid_x * GRID_SIZE) - this.camera_x;
+        const start_y = grid_y * GRID_SIZE;
+        const pattern = TEXTURES[block_type];
         
-        const monsterMat = (() => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 16; canvas.height = 16;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#2c1e3d'; ctx.fillRect(0, 0, 16, 16);
-            ctx.fillStyle = '#ff0033'; ctx.fillRect(3, 4, 2, 2); ctx.fillRect(11, 4, 2, 2);
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
-            return new THREE.MeshLambertMaterial({ map: tex });
-        })();
-
-        function spawnMonster(x, y, z) {
-            const mesh = new THREE.Mesh(monsterGeo, monsterMat);
-            mesh.position.set(x, y + 0.8, z);
-            scene.add(mesh);
-            monsters.push({
-                mesh: mesh,
-                health: 2,
-                velocity: new THREE.Vector3()
-            });
+        for (let row = 0; row < BLOCK_SIZE; row++) {
+            for (let col = 0; col < BLOCK_SIZE; col++) {
+                ctx.fillStyle = pattern[row][col];
+                ctx.fillRect(
+                    start_x + (col * PIXEL_SIZE),
+                    start_y + (row * PIXEL_SIZE),
+                    PIXEL_SIZE,
+                    PIXEL_SIZE
+                );
+            }
         }
+    }
 
-        // --- 7. PLAYER CONTROLS & REFACTORED AABB HITBOX PHYSICS ---
-        camera.position.set(0, 8, 0); 
-
-        let gameMode = "survival";
-        let playerHealth = 20;
-        const maxHealth = 20;
-        let isCraftingOpen = false;
-
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false, spacePressed = false, shiftPressed = false;
-        const velocity = new THREE.Vector3();
+    placeBlock(mouseX, mouseY) {
+        if (mouseY > HEIGHT - 80) return; 
+        const true_x = mouseX + this.camera_x;
+        const grid_x = Math.floor(true_x / GRID_SIZE);
+        const grid_y = Math.floor(mouseY / GRID_SIZE);
         
-        const speed = 12.0, friction = 6.0, GRAVITY = 22.0, JUMP_FORCE = 5.5; 
+        const block_left = grid_x * GRID_SIZE;
+        const block_right = block_left + GRID_SIZE;
+        const block_top = grid_y * GRID_SIZE;
+        const block_bottom = block_top + GRID_SIZE;
         
-        const PLAYER_RADIUS = 0.35; 
-        const PLAYER_HEIGHT_EYES = 1.7; 
-        const PLAYER_TOTAL_HEIGHT = 1.8;
-
-        let worldTime = 0.0; 
-        let isNight = false;
-        let monsterSpawnTimer = 0;
-
-        let clock = new THREE.Clock();
-        const interactionRaycaster = new THREE.Raycaster();
-
-        // Stricter Axis-Aligned Bounding Box (AABB) Collision Detector
-        function findOverlappingSolidBlock(px, py, pz) {
-            const pMinX = px - PLAYER_RADIUS + 0.001;
-            const pMaxX = px + PLAYER_RADIUS - 0.001;
-            const pMinZ = pz - PLAYER_RADIUS + 0.001;
-            const pMaxZ = pz + PLAYER_RADIUS - 0.001;
-            const pMinY = py - PLAYER_HEIGHT_EYES + 0.001;
-            const pMaxY = py + (PLAYER_TOTAL_HEIGHT - PLAYER_HEIGHT_EYES) - 0.001;
-
-            for (let i = 0; i < objects.length; i++) {
-                const obj = objects[i];
-                if (obj.name === "water" || obj.name === "torch") continue; 
-
-                const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
-                const bMinX = bx - 0.5, bMaxX = bx + 0.5;
-                const bMinZ = bz - 0.5, bMaxZ = bz + 0.5;
-
-                if (pMaxX > bMinX && pMinX < bMaxX &&
-                    pMaxY > by - 0.5 && pMinY < by + 0.5 &&
-                    pMaxZ > bMinZ && pMinZ < bMaxZ) {
-                    return obj; 
-                }
-            }
-            return null;
-        }
-
-        function updateCraftingUI() {
-            const matDiv = document.getElementById('craft-materials');
-            if(matDiv) {
-                matDiv.innerHTML = `Your Inventory: <br>
-                    <span style="color: ${inventory.wood >= 1 ? '#55ff55' : '#ff5555'}">Wood: ${inventory.wood}/1</span> | 
-                    <span style="color: ${inventory.stone >= 1 ? '#55ff55' : '#ff5555'}">Stone: ${inventory.stone}/1</span>`;
-            }
-        }
-
-        function toggleCraftingMenu() {
-            if (gameMode !== "survival") return;
-
-            isCraftingOpen = !isCraftingOpen;
-            const menu = document.getElementById('crafting-menu');
-            
-            if(isCraftingOpen) {
-                if(menu) menu.style.display = 'block';
-                updateCraftingUI();
-                document.exitPointerLock();
-            } else {
-                if(menu) menu.style.display = 'none';
-                document.body.requestPointerLock();
-            }
-        }
-
-        document.getElementById('craft-btn').addEventListener('click', () => {
-            if (inventory.wood >= 1 && inventory.stone >= 1) {
-                inventory.wood -= 1;
-                inventory.stone -= 1;
-                inventory.torch += 4;
-                updateCraftingUI();
-                buildHotbarUI();
-            }
-        });
-
-        const onKeyDown = (e) => {
-            if (isCraftingOpen && e.code !== 'KeyC' && e.code !== 'Escape') return;
-
-            switch (e.code) {
-                case 'KeyW': moveForward = true; break;
-                case 'KeyA': moveLeft = true; break;
-                case 'KeyS': moveBackward = true; break;
-                case 'KeyD': moveRight = true; break;
-                case 'Space': spacePressed = true; break;
-                case 'ShiftLeft': case 'ShiftRight': shiftPressed = true; break;
-                case 'KeyC': 
-                    toggleCraftingMenu();
-                    break;
-                case 'KeyP':
-                    gameMode = "peaceful";
-                    document.getElementById('mode-badge').innerText = `MODE: ${gameMode.toUpperCase()}`;
-                    playerHealth = maxHealth;
-                    document.getElementById('health-bar').style.width = '100%';
-                    velocity.set(0,0,0);
-                    buildHotbarUI();
-                    break;
-                case 'KeyM': 
-                    gameMode = (gameMode === "survival") ? "creative" : "survival";
-                    document.getElementById('mode-badge').innerText = `MODE: ${gameMode.toUpperCase()}`;
-                    if(gameMode === "creative" || gameMode === "peaceful") {
-                        playerHealth = maxHealth;
-                        document.getElementById('health-bar').style.width = '100%';
-                    }
-                    velocity.set(0, 0, 0);
-                    buildHotbarUI();
-                    break;
-                case 'Digit1': switchBlockIndex(0); break;
-                case 'Digit2': switchBlockIndex(1); break;
-                case 'Digit3': switchBlockIndex(2); break;
-                case 'Digit4': switchBlockIndex(3); break;
-                case 'Digit5': switchBlockIndex(4); break;
-                case 'Digit6': switchBlockIndex(5); break;
-                case 'Digit7': switchBlockIndex(6); break; 
-            }
-        };
-
-        const onKeyUp = (e) => {
-            switch (e.code) {
-                case 'KeyW': moveForward = false; break;
-                case 'KeyA': moveLeft = false; break;
-                case 'KeyS': moveBackward = false; break;
-                case 'KeyD': moveRight = false; break;
-                case 'Space': spacePressed = false; break;
-                case 'ShiftLeft': case 'ShiftRight': shiftPressed = false; break;
-            }
-        };
-
-        document.addEventListener('keydown', onKeyDown);
-        document.addEventListener('keyup', onKeyUp);
-
-        document.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement !== document.body || isCraftingOpen) return;
-
-            interactionRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
-            
-            const monsterMeshes = monsters.map(m => m.mesh);
-            const monsterHits = interactionRaycaster.intersectObjects(monsterMeshes);
-
-            if (monsterHits.length > 0 && monsterHits[0].distance < 4.0 && e.button === 0) {
-                const hitMesh = monsterHits[0].object;
-                const monsterObj = monsters.find(m => m.mesh === hitMesh);
-                if (monsterObj) {
-                    monsterObj.health--;
-                    const kbDir = hitMesh.position.clone().sub(camera.position).setY(0).normalize();
-                    monsterObj.velocity.addScaledVector(kbDir, 7.0);
-                    monsterObj.velocity.y = 3.0;
-
-                    if(monsterObj.health <= 0) {
-                        scene.remove(hitMesh);
-                        monsters.splice(monsters.indexOf(monsterObj), 1);
-                    }
-                }
-                return;
-            }
-
-            const hits = interactionRaycaster.intersectObjects(objects);
-            const maxReach = (gameMode === "creative" || gameMode === "peaceful") ? 10.0 : 4.0;
-
-            if (hits.length > 0 && hits[0].distance < maxReach) {
-                const targetedMesh = hits[0].object;
-
-                if (e.button === 0) { 
-                    if (targetedMesh.position.y <= BEDROCK_Y) return; 
-                    if (targetedMesh.name === "water") return;
-
-                    if (gameMode === "survival") {
-                        if(inventory[targetedMesh.name] !== undefined) {
-                            inventory[targetedMesh.name] += 1;
-                        }
-                    }
-
-                    scene.remove(targetedMesh);
-                    
-                    const idx = objects.indexOf(targetedMesh);
-                    if(idx > -1) objects.splice(idx, 1);
-                    if(targetedMesh.name === "torch") {
-                        const tIdx = torches.indexOf(targetedMesh);
-                        if(tIdx > -1) torches.splice(tIdx, 1);
-                    }
-                    
-                    buildHotbarUI();
-                } 
-                else if (e.button === 2) { 
-                    if (gameMode === "survival" && inventory[currentBlockType] <= 0) return;
-
-                    const normal = hits[0].face.normal.clone();
-                    const spawnPos = targetedMesh.position.clone().add(normal);
-
-                    const playerFloorPos = camera.position.clone().setY(Math.floor(camera.position.y));
-                    if(spawnPos.distanceTo(playerFloorPos) < 1 && normal.y === -1) return; 
-
-                    createBlock(spawnPos.x, spawnPos.y, spawnPos.z, currentBlockType);
-                    
-                    if (gameMode === "survival") {
-                        inventory[currentBlockType] -= 1;
-                    }
-                    buildHotbarUI();
-                }
-            }
-        });
-
-        document.addEventListener('contextmenu', e => e.preventDefault());
-
-        const instructions = document.getElementById('instructions');
-        if(instructions) {
-            instructions.addEventListener('click', () => { if(!isCraftingOpen) document.body.requestPointerLock(); });
-        }
+        const player_right = this.player_x + PLAYER_WIDTH;
+        const player_bottom = this.player_y + PLAYER_HEIGHT;
         
-        document.addEventListener('pointerlockchange', () => {
-            const instr = document.getElementById('instructions');
-            if(!instr) return;
-            if (document.pointerLockElement !== document.body && !isCraftingOpen) {
-                instr.style.display = 'block';
-            } else {
-                instr.style.display = 'none';
-            }
-        });
+        const is_overlapping_player = (
+            this.player_x < block_right && 
+            player_right > block_left && 
+            this.player_y < block_bottom && 
+            player_bottom > block_top
+        );
+        
+        if (!this.world[`${grid_x},${grid_y}`] && !is_overlapping_player) {
+            this.world[`${grid_x},${grid_y}`] = this.current_block_type;
+        }
+    }
 
-        document.addEventListener('mousemove', (event) => {
-            if (document.pointerLockElement !== document.body || isCraftingOpen) return;
-            camera.rotation.y -= event.movementX * 0.002;
-            camera.rotation.x -= event.movementY * 0.002;
-            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-        });
+    destroyBlock(mouseX, mouseY) {
+        const true_x = mouseX + this.camera_x;
+        const grid_x = Math.floor(true_x / GRID_SIZE);
+        const grid_y = Math.floor(mouseY / GRID_SIZE);
+        
+        if (this.world[`${grid_x},${grid_y}`]) {
+            delete this.world[`${grid_x},${grid_y}`];
+        }
+    }
 
-        camera.rotation.order = "YXZ";
+    jump() {
+        if (this.on_ground) {
+            this.player_vy = JUMP_FORCE;
+            this.on_ground = false;
+        }
+    }
 
-        function checkIsInWater(px, py, pz) {
-            const pMinX = px - PLAYER_RADIUS, pMaxX = px + PLAYER_RADIUS;
-            const pMinZ = pz - PLAYER_RADIUS, pMaxZ = pz + PLAYER_RADIUS;
-            const pMinY = py - PLAYER_HEIGHT_EYES, pMaxY = py + 0.1;
-
-            for (let i = 0; i < objects.length; i++) {
-                const obj = objects[i];
-                if (obj.name !== "water") continue;
-
-                const bx = obj.position.x, by = obj.position.y, bz = obj.position.z;
-                if (pMaxX > bx - 0.5 && pMinX < bx + 0.5 &&
-                    pMaxY > by - 0.5 && pMinY < by + 0.5 &&
-                    pMaxZ > bz - 0.5 && pMinZ < bz + 0.5) {
+    checkCollision(x, y) {
+        const left_grid = Math.floor(x / GRID_SIZE);
+        const right_grid = Math.floor((x + PLAYER_WIDTH - 1) / GRID_SIZE);
+        const top_grid = Math.floor(y / GRID_SIZE);
+        const bottom_grid = Math.floor((y + PLAYER_HEIGHT - 1) / GRID_SIZE);
+        
+        for (let gx = left_grid; gx <= right_grid; gx++) {
+            for (let gy = top_grid; gy <= bottom_grid; gy++) {
+                if (this.world[`${gx},${gy}`]) {
+                    if (this.world[`${gx},${gy}`] === "water") continue;
                     return true;
                 }
             }
-            return false;
         }
+        return false;
+    }
 
-        function isPositionLit(pos) {
-            for(let i=0; i < torches.length; i++) {
-                if(pos.distanceTo(torches[i].position) < 6.5) return true;
+    drawPlayer(spx, spy, swing_offset, lift_offset) {
+        // Body Part rendering wrappers mimicking Tkinter rect coordinates
+        const drawPart = (x1, y1, x2, y2, fill, outline) => {
+            ctx.fillStyle = fill;
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+            if (outline) {
+                ctx.strokeStyle = outline;
+                ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
             }
-            return false;
-        }
+        };
 
-        let monsterDamageCooldown = 0;
+        // Hair & Head
+        drawPart(spx + 4, spy, spx + 20, spy + 4, "#4A2E1B", "");
+        drawPart(spx + 4, spy + 4, spx + 20, spy + 14, "#FFD1A4", "#E0A97E");
+        
+        // Torso / Shirt
+        drawPart(spx + 4, spy + 14, spx + 20, spy + 28, "#0080FF", "#0059B3");
+        
+        // Left Arm & Hand
+        drawPart(spx, spy + 14 + swing_offset, spx + 4, spy + 26 + swing_offset, "#0080FF", "#0059B3");
+        drawPart(spx, spy + 26 + swing_offset, spx + 4, spy + 30 + swing_offset, "#FFD1A4", "");
+        
+        // Right Arm & Hand
+        drawPart(spx + 20, spy + 14 - swing_offset, spx + 24, spy + 26 - swing_offset, "#0080FF", "#0059B3");
+        drawPart(spx + 20, spy + 26 - swing_offset, spx + 24, spy + 30 - swing_offset, "#FFD1A4", "");
+        
+        // Left Leg & Boot
+        drawPart(spx + 4 + swing_offset, spy + 28, spx + 11 + swing_offset, spy + 36 - lift_offset, "#333333", "#1A1A1A");
+        drawPart(spx + 3 + swing_offset, spy + 36 - lift_offset, spx + 11 + swing_offset, spy + 40 - lift_offset, "#5C4033", "");
+        
+        // Right Leg & Boot
+        drawPart(spx + 13 - swing_offset, spy + 28, spx + 20 - swing_offset, spy + 36 - lift_offset, "#262626", "#1A1A1A");
+        drawPart(spx + 12 - swing_offset, spy + 36 - lift_offset, spx + 20 - swing_offset, spy + 40 - lift_offset, "#442D22", "");
+    }
 
-        // --- 8. ENGINE RUNTIME INTERPOLATION ---
-        function animate() {
-            requestAnimationFrame(animate);
+    drawHotbar() {
+        const start_x = WIDTH / 2 - (BLOCK_TYPES.length * 50) / 2;
+        const y1 = HEIGHT - 65;
+        
+        // Main container
+        ctx.fillStyle = "#1A1A1A";
+        ctx.strokeStyle = "#333333";
+        ctx.lineWidth = 3;
+        ctx.fillRect(start_x - 5, y1 - 5, (BLOCK_TYPES.length * 50) + 10, 60);
+        ctx.strokeRect(start_x - 5, y1 - 5, (BLOCK_TYPES.length * 50) + 10, 60);
 
-            const delta = Math.min(clock.getDelta(), 0.1); 
-
-            if (document.pointerLockElement === document.body && !isCraftingOpen) {
-                
-                // DAY / NIGHT SYSTEMS
-                worldTime += delta * 0.015; 
-                if(worldTime > 2.0) worldTime -= 2.0;
-
-                let skyIntensity = Math.sin(worldTime * Math.PI); 
-                if (skyIntensity < -0.2) skyIntensity = -0.2; 
-
-                isNight = skyIntensity <= 0.0;
-                document.getElementById('time-badge').innerText = `TIME: ${isNight ? "NIGHT 🌙" : "DAY ☀️"}`;
-
-                const clrVal = Math.max(0.08, (skyIntensity + 0.2) / 1.2);
-                scene.background.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clrVal);
-                scene.fog.color.setRGB(0x87/255 * clrVal, 0xCE/255 * clrVal, 0xEB/255 * clrVal);
-                ambientLight.intensity = 0.15 + 0.6 * Math.max(0, skyIntensity);
-                directionalLight.intensity = 0.45 * Math.max(0, skyIntensity);
-
-                // ENEMY CLEANING LOOP FOR PEACEFUL MODE
-                if (gameMode === "peaceful" && monsters.length > 0) {
-                    for(let i = monsters.length - 1; i >= 0; i--) scene.remove(monsters[i].mesh);
-                    monsters.length = 0;
-                }
-
-                // AI MOB SPAWNING
-                if (isNight && gameMode === "survival") {
-                    monsterSpawnTimer += delta;
-                    if (monsterSpawnTimer > 4.0 && monsters.length < 8) { 
-                        monsterSpawnTimer = 0;
-                        const randBlock = objects[Math.floor(Math.random() * objects.length)];
-                        if (randBlock && randBlock.name !== "water" && randBlock.name !== "torch" && randBlock.position.y > -4) {
-                            const spawnPos = randBlock.position.clone().add(new THREE.Vector3(0, 1, 0));
-                            if (!isPositionLit(spawnPos) && spawnPos.distanceTo(camera.position) > 8.0) {
-                                spawnMonster(spawnPos.x, spawnPos.y, spawnPos.z);
-                            }
-                        }
-                    }
-                } else if (!isNight && monsters.length > 0) {
-                    for(let i = monsters.length - 1; i >= 0; i--) {
-                        scene.remove(monsters[i].mesh);
-                    }
-                    monsters.length = 0;
-                }
-
-                if (monsterDamageCooldown > 0) monsterDamageCooldown -= delta;
-
-                for (let i = monsters.length - 1; i >= 0; i--) {
-                    const m = monsters[i];
-                    
-                    m.velocity.x -= m.velocity.x * 5.0 * delta;
-                    m.velocity.z -= m.velocity.z * 5.0 * delta;
-                    m.velocity.y -= GRAVITY * delta;
-
-                    const toPlayer = camera.position.clone().sub(m.mesh.position);
-                    toPlayer.y = 0; 
-                    const dist = toPlayer.length();
-
-                    if (dist < 14.0 && gameMode === "survival") { 
-                        toPlayer.normalize();
-                        m.velocity.x += toPlayer.x * 16.0 * delta;
-                        m.velocity.z += toPlayer.z * 16.0 * delta;
-
-                        const checkAhead = m.mesh.position.clone().addScaledVector(toPlayer, 0.6);
-                        if (findOverlappingSolidBlock(checkAhead.x, m.mesh.position.y, checkAhead.z)) {
-                            if (m.mesh.position.y - Math.floor(m.mesh.position.y) < 0.1) {
-                                m.velocity.y = 5.0;
-                            }
-                        }
-                    }
-
-                    m.mesh.position.x += m.velocity.x * delta;
-                    m.mesh.position.z += m.velocity.z * delta;
-                    m.mesh.position.y += m.velocity.y * delta;
-
-                    let mFloor = findOverlappingSolidBlock(m.mesh.position.x, m.mesh.position.y - 0.7, m.mesh.position.z);
-                    if (mFloor && m.velocity.y <= 0) {
-                        m.velocity.y = 0;
-                        m.mesh.position.y = mFloor.position.y + 0.5 + 0.8;
-                    }
-
-                    if (dist < 1.2 && gameMode === "survival" && monsterDamageCooldown <= 0) {
-                        playerHealth -= 4; 
-                        monsterDamageCooldown = 0.8; 
-                        document.getElementById('health-bar').style.width = `${(playerHealth/maxHealth)*100}%`;
-
-                        const pKb = camera.position.clone().sub(m.mesh.position).setY(0).normalize();
-                        velocity.addScaledVector(pKb, 8.0);
-                        velocity.y = 3.5;
-
-                        if (playerHealth <= 0) { 
-                            alert("James has fallen in battle! Respawning...");
-                            playerHealth = maxHealth;
-                            document.getElementById('health-bar').style.width = '100%';
-                            camera.position.set(0, 8, 0);
-                            velocity.set(0,0,0);
-                        }
-                    }
-                }
-
-                // CONTROLLER VELOCITY PHYSICS (AABB FIXES INTEGRATED)
-                const inWater = checkIsInWater(camera.position.x, camera.position.y, camera.position.z);
-                const matchesGroundPhysics = (gameMode === "survival" || gameMode === "peaceful");
-
-                const currentFriction = (inWater && matchesGroundPhysics) ? friction * 1.8 : friction;
-                velocity.x -= velocity.x * currentFriction * delta;
-                velocity.z -= velocity.z * friction * delta; 
-
-                if (gameMode === "creative") {
-                    velocity.y -= velocity.y * friction * delta; 
-                    if (spacePressed) velocity.y = 8.0;
-                    else if (shiftPressed) velocity.y = -8.0;
-                } else {
-                    if (inWater) {
-                        velocity.y -= (GRAVITY * 0.25) * delta; 
-                        if (velocity.y < -3.0) velocity.y = -3.0; 
-                    } else {
-                        velocity.y -= GRAVITY * delta; 
-                    }
-
-                    if (spacePressed) {
-                        if (inWater) velocity.y = 2.5;
-                        else if (canJump) {
-                            velocity.y = JUMP_FORCE; 
-                            canJump = false;
-                        }
-                    }
-                }
-
-                const frontVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
-                const sideVector = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
-
-                const moveVector = new THREE.Vector3();
-                if (moveForward) moveVector.add(frontVector);
-                if (moveBackward) moveVector.sub(frontVector);
-                if (moveRight) moveVector.add(sideVector);
-                if (moveLeft) moveVector.sub(sideVector);
-                moveVector.normalize();
-
-                let currentSpeed = speed;
-                if (gameMode === "creative") currentSpeed = speed * 1.6;
-                else if (inWater) currentSpeed = speed * 0.4;
-
-                if (moveForward || moveBackward || moveRight || moveLeft) {
-                    velocity.x += moveVector.x * currentSpeed * 4.0 * delta;
-                    velocity.z += moveVector.z * currentSpeed * 4.0 * delta;
-                }
-
-                // AXIS-SEPARATED AABB HITBOX MOVEMENT RESOLUTION
-                let newPosX = camera.position.x + velocity.x * delta;
-                let newPosZ = camera.position.z + velocity.z * delta;
-
-                // Move X axis independently
-                if (!findOverlappingSolidBlock(newPosX, camera.position.y, camera.position.z)) {
-                    camera.position.x = newPosX;
-                } else {
-                    velocity.x = 0; 
-                }
-
-                // Move Z axis independently
-                if (!findOverlappingSolidBlock(camera.position.x, camera.position.y, newPosZ)) {
-                    camera.position.z = newPosZ;
-                } else {
-                    velocity.z = 0; 
-                }
-
-                // Handle Y Axis & Floor Snapping precisely
-                let targetY = camera.position.y + velocity.y * delta;
-                
-                if (velocity.y < 0) { 
-                    let floorBlock = findOverlappingSolidBlock(camera.position.x, targetY, camera.position.z);
-                    if (floorBlock) {
-                        const blockTopSurface = floorBlock.position.y + 0.5;
-                        if ((camera.position.y - PLAYER_HEIGHT_EYES) >= blockTopSurface - 0.15) {
-                            velocity.y = 0;
-                            canJump = true;
-                            targetY = blockTopSurface + PLAYER_HEIGHT_EYES; 
-                        }
-                    }
-                } else if (velocity.y > 0) { 
-                    if (findOverlappingSolidBlock(camera.position.x, targetY, camera.position.z)) {
-                        velocity.y = 0; 
-                    }
-                }
-
-                camera.position.y = targetY;
-
-                if (camera.position.y < -25) {
-                    velocity.y = 0;
-                    camera.position.set(0, 8, 0);
+        BLOCK_TYPES.forEach((b_type, i) => {
+            const slot_x = start_x + (i * 50);
+            const is_selected = (b_type === this.current_block_type);
+            
+            // Slot styling
+            ctx.fillStyle = is_selected ? "#555566" : "#444444";
+            ctx.strokeStyle = is_selected ? "#FF8800" : "#888888";
+            ctx.lineWidth = is_selected ? 3 : 2;
+            ctx.fillRect(slot_x, y1, 45, 45);
+            ctx.strokeRect(slot_x, y1, 45, 45);
+            
+            // Texture icon inside slot
+            const pattern = TEXTURES[b_type];
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    ctx.fillStyle = pattern[r][c];
+                    ctx.fillRect(slot_x + 6 + (c * 8), y1 + 6 + (r * 8), 8, 8);
                 }
             }
-
-            renderer.render(scene, camera);
-        }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Number identifier
+            ctx.fillStyle = "white";
+            ctx.font = "bold 10px Arial";
+            ctx.fillText(i + 1, slot_x + 6, y1 + 14);
         });
+    }
 
-        buildHotbarUI();
-        const hb = document.getElementById('health-bar');
-        if(hb) hb.style.width = '100%';
+    gameLoop() {
+        // Clear screen with sky color
+        ctx.fillStyle = "skyblue";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-        // Instantly display the click instructions backdrop overlay
-        const instr = document.getElementById('instructions');
-        if(instr) instr.style.display = 'block';
+        // Horizontal Movement
+        let dx = 0;
+        let is_moving = false;
+        if (this.keys["a"]) { dx -= MOVE_SPEED; is_moving = true; }
+        if (this.keys["d"]) { dx += MOVE_SPEED; is_moving = true; }
+        
+        if (dx !== 0) {
+            if (!this.checkCollision(this.player_x + dx, this.player_y)) {
+                this.player_x += dx;
+            }
+        }
 
-        animate();
-    </script>
+        // Vertical Physics
+        this.player_vy += GRAVITY;
+        if (this.player_vy > 10) this.player_vy = 10;
+        
+        let new_y = this.player_y + this.player_vy;
+        
+        if (!this.checkCollision(this.player_x, new_y)) {
+            this.player_y = new_y;
+            this.on_ground = false;
+        } else {
+            if (this.player_vy > 0) {
+                this.on_ground = true;
+                // Snap exactly 1 pixel above the ground surface row
+                let collided_row = Math.floor((new_y + PLAYER_HEIGHT) / GRID_SIZE);
+                this.player_y = (collided_row * GRID_SIZE) - PLAYER_HEIGHT - 1;
+            }
+            this.player_vy = 0;
+        }
+
+        // Handle Animation cycles
+        if (is_moving && this.on_ground) {
+            this.anim_frame += 0.3;
+        } else {
+            this.anim_frame = 0;
+        }
+        
+        const swing_offset = Math.sin(this.anim_frame) * 5;
+        const lift_offset = is_moving ? Math.abs(Math.cos(this.anim_frame)) * 2 : 0;
+
+        // Camera Tracking
+        this.camera_x = this.player_x - (WIDTH / 2) + (PLAYER_WIDTH / 2);
+
+        // Draw World Blocks
+        for (let key in this.world) {
+            const [gx, gy] = key.split(",").map(Number);
+            this.drawBlock(gx, gy, this.world[key]);
+        }
+
+        // Draw Player Character
+        const spx = this.player_x - this.camera_x;
+        const spy = this.player_y;
+        this.drawPlayer(spx, spy, swing_offset, lift_offset);
+
+        // Draw UI
+        this.drawHotbar();
+    }
+}
+
+// Instantiate the game
+new Minecraft2D();
+</script>
+
 </body>
 </html>
