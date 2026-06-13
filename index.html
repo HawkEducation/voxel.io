@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Minecraft - Smooth HTML5 Canvas</title>
+    <title>2D Minecraft - Full Vertical Scrolling</title>
     <style>
         body {
             margin: 0;
@@ -74,6 +74,12 @@ const TEXTURES = {
         ["#008000", "#006400", "#008000", "#32CD32"],
         ["#228B22", "#008000", "#228B22", "#006400"],
         ["#98FB98", "#32CD32", "#008000", "#228B22"]
+    ],
+    "barrier": [
+        ["#FF0000", "#AA0000", "#AA0000", "#FF0000"],
+        ["#AA0000", "#FF0000", "#FF0000", "#AA0000"],
+        ["#AA0000", "#FF0000", "#FF0000", "#AA0000"],
+        ["#FF0000", "#AA0000", "#AA0000", "#FF0000"]
     ]
 };
 
@@ -92,12 +98,19 @@ const MOVE_SPEED = 4;
 const PLAYER_WIDTH = 24;
 const PLAYER_HEIGHT = 40;  
 
+const MIN_TRACK_GRID = -100;
+const MAX_TRACK_GRID = 100;
+const MAX_DEPTH_GRID = 40; // Dig depth limits expanded down
+
 class Minecraft2D {
     constructor() {
         this.world = {};
         this.current_block_type = "wood";
-        this.camera_x = 0;  
         
+        // --- TWO AXIS CAMERA TRACKING ---
+        this.camera_x = 0;  
+        this.camera_y = 0;
+
         this.player_x = WIDTH / 2;
         this.player_y = 50;
         this.player_vy = 0;  
@@ -110,17 +123,14 @@ class Minecraft2D {
         this.initEventListeners();
         this.createBiomeWorld();
         
-        // --- SMOOTH TIMING SYSTEM ---
         this.lastTime = performance.now();
         this.accumulator = 0;
-        this.timestep = 1000 / 50; // Target strict 50 physics updates per second (20ms per tick)
+        this.timestep = 1000 / 50; 
 
-        // Kick off the loop synced to the monitor frame rate
         requestAnimationFrame((timestamp) => this.smoothGameLoop(timestamp));
     }
 
     initEventListeners() {
-        // Keyboard inputs
         window.addEventListener("keydown", (e) => {
             if (e.key === "a" || e.key === "A") this.keys["a"] = true;
             if (e.key === "d" || e.key === "D") this.keys["d"] = true;
@@ -128,7 +138,6 @@ class Minecraft2D {
                 this.jump();
                 e.preventDefault();
             }
-            // Hotbar selection keys 1-7
             if (e.key >= "1" && e.key <= "7") {
                 this.current_block_type = BLOCK_TYPES[parseInt(e.key) - 1];
             }
@@ -139,7 +148,6 @@ class Minecraft2D {
             if (e.key === "d" || e.key === "D") this.keys["d"] = false;
         });
 
-        // Mouse clicks (Left click to build, Right/Middle click to mine)
         canvas.addEventListener("mousedown", (e) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -152,28 +160,48 @@ class Minecraft2D {
             }
         });
 
-        // Block contextual popups on right click
         canvas.addEventListener("contextmenu", e => e.preventDefault());
     }
 
     createBiomeWorld() {
-        const floor_y = Math.floor(HEIGHT / GRID_SIZE) - 3;
-        const rows = Math.floor(HEIGHT / GRID_SIZE);
+        const base_floor_y = Math.floor(HEIGHT / GRID_SIZE) - 5;
         
-        for (let x = -50; x <= 50; x++) {
+        for (let x = MIN_TRACK_GRID; x <= MAX_TRACK_GRID; x++) {
+            // Build absolute indestructible wall barriers at borders extending deep
+            if (x === MIN_TRACK_GRID || x === MAX_TRACK_GRID) {
+                for (let y = -20; y <= MAX_DEPTH_GRID; y++) {
+                    this.world[`${x},${y}`] = "barrier";
+                }
+                continue;
+            }
+
             let biome = "forest";
-            if (x < -15) biome = "ocean";
-            else if (x > 15) biome = "desert";
-                
+            if (x < -35) biome = "ocean";
+            else if (x > 35) biome = "desert";
+            
+            let hill_height = 0;
+            if (biome === "forest") {
+                hill_height = Math.round(Math.sin(x * 0.2) * 2.5) + Math.round(Math.cos(x * 0.08) * 1.5);
+            } else if (biome === "desert") {
+                hill_height = Math.round(Math.sin(x * 0.15) * 3); 
+            } else if (biome === "ocean") {
+                hill_height = -2; 
+            }
+
+            let floor_y = base_floor_y - hill_height;
+
             if (biome === "ocean") {
-                this.world[`${x},${floor_y}`] = "water";
-                for (let y = floor_y + 1; y < rows; y++) {
+                let sea_level = base_floor_y + 1;
+                for (let y = floor_y; y <= sea_level; y++) {
+                    this.world[`${x},${y}`] = "water";
+                }
+                for (let y = sea_level + 1; y <= MAX_DEPTH_GRID; y++) {
                     this.world[`${x},${y}`] = "sand";
                 }
             } else if (biome === "desert") {
                 this.world[`${x},${floor_y}`] = "sand";
-                for (let y = floor_y + 1; y < rows; y++) {
-                    if (y > floor_y + 2) {
+                for (let y = floor_y + 1; y <= MAX_DEPTH_GRID; y++) {
+                    if (y > floor_y + 3) {
                         this.world[`${x},${y}`] = "stone";
                     } else {
                         this.world[`${x},${y}`] = "sand";
@@ -181,48 +209,43 @@ class Minecraft2D {
                 }
             } else if (biome === "forest") {
                 this.world[`${x},${floor_y}`] = "grass";
-                for (let y = floor_y + 1; y < rows; y++) {
-                    this.world[`${x},${y}`] = "dirt";
+                for (let y = floor_y + 1; y <= MAX_DEPTH_GRID; y++) {
+                    if (y > floor_y + 4) {
+                        this.world[`${x},${y}`] = "stone";
+                    } else {
+                        this.world[`${x},${y}`] = "dirt";
+                    }
                 }
                 
-                if (x !== 10 && x !== 9 && x !== 11 && Math.random() < 0.07) {
+                if (Math.abs(x) > 5 && Math.random() < 0.15) {
                     this.growTree(x, floor_y - 1);
                 }
             }
+            
+            // Solid bedrock layer barrier block generation at maximum baseline depth
+            this.world[`${x},${MAX_DEPTH_GRID}`] = "barrier";
         }
     }
 
     growTree(trunk_x, base_y) {
-        const tree_height = Math.floor(Math.random() * 2) + 2; 
+        const tree_height = Math.floor(Math.random() * 2) + 3; 
         for (let i = 0; i < tree_height; i++) {
             this.world[`${trunk_x},${base_y - i}`] = "wood";
         }
         
         const top_y = base_y - tree_height;
-        for (let leaf_x = trunk_x - 1; leaf_x <= trunk_x + 1; leaf_x++) {
-            for (let leaf_y = top_y - 1; leaf_y <= top_y; leaf_y++) {
-                if (!this.world[`${leaf_x},${leaf_y}`]) {
+        for (let leaf_x = trunk_x - 2; leaf_x <= trunk_x + 2; leaf_x++) {
+            for (let leaf_y = top_y - 1; leaf_y <= top_y + 1; leaf_y++) {
+                if (!this.world[`${leaf_x},${leaf_y}`] && Math.abs(leaf_x - trunk_x) + Math.abs(leaf_y - top_y) <= 3) {
                     this.world[`${leaf_x},${leaf_y}`] = "leaves";
                 }
-            }
-        }
-        
-        const extra_leaf_spots = [
-            [trunk_x, top_y - 2],
-            [trunk_x - 1, top_y],
-            [trunk_x + 1, top_y]
-        ];
-        
-        for (let [lx, ly] of extra_leaf_spots) {
-            if (!this.world[`${lx},${ly}`]) {
-                this.world[`${lx},${ly}`] = "leaves";
             }
         }
     }
 
     drawBlock(grid_x, grid_y, block_type) {
         const start_x = (grid_x * GRID_SIZE) - this.camera_x;
-        const start_y = grid_y * GRID_SIZE;
+        const start_y = (grid_y * GRID_SIZE) - this.camera_y;
         const pattern = TEXTURES[block_type];
         
         for (let row = 0; row < BLOCK_SIZE; row++) {
@@ -239,11 +262,14 @@ class Minecraft2D {
     }
 
     placeBlock(mouseX, mouseY) {
-        if (mouseY > HEIGHT - 80) return; 
+        // Translate screenspace mouse clicks into dynamic world coordinates matching camera scroll values
         const true_x = mouseX + this.camera_x;
+        const true_y = mouseY + this.camera_y;
         const grid_x = Math.floor(true_x / GRID_SIZE);
-        const grid_y = Math.floor(mouseY / GRID_SIZE);
+        const grid_y = Math.floor(true_y / GRID_SIZE);
         
+        if (grid_x <= MIN_TRACK_GRID || grid_x >= MAX_TRACK_GRID || grid_y >= MAX_DEPTH_GRID) return;
+
         const block_left = grid_x * GRID_SIZE;
         const block_right = block_left + GRID_SIZE;
         const block_top = grid_y * GRID_SIZE;
@@ -266,10 +292,11 @@ class Minecraft2D {
 
     destroyBlock(mouseX, mouseY) {
         const true_x = mouseX + this.camera_x;
+        const true_y = mouseY + this.camera_y;
         const grid_x = Math.floor(true_x / GRID_SIZE);
-        const grid_y = Math.floor(mouseY / GRID_SIZE);
+        const grid_y = Math.floor(true_y / GRID_SIZE);
         
-        if (this.world[`${grid_x},${grid_y}`]) {
+        if (this.world[`${grid_x},${grid_y}`] && this.world[`${grid_x},${grid_y}`] !== "barrier") {
             delete this.world[`${grid_x},${grid_y}`];
         }
     }
@@ -337,7 +364,6 @@ class Minecraft2D {
         const start_x = WIDTH / 2 - (BLOCK_TYPES.length * 50) / 2;
         const y1 = HEIGHT - 65;
         
-        // Hotbar Container Box
         ctx.fillStyle = "#1A1A1A";
         ctx.strokeStyle = "#333333";
         ctx.lineWidth = 3;
@@ -370,18 +396,16 @@ class Minecraft2D {
 
     smoothGameLoop(timestamp) {
         let dt = timestamp - this.lastTime;
-        if (dt > 250) dt = 250; // Safeguard if user updates tabs
+        if (dt > 250) dt = 250; 
         this.lastTime = timestamp;
 
         this.accumulator += dt;
 
-        // Catch up on fixed updates matching original tickrate
         while (this.accumulator >= this.timestep) {
             this.updatePhysics();
             this.accumulator -= this.timestep;
         }
 
-        // Draw the frame cleanly
         this.render();
 
         requestAnimationFrame((t) => this.smoothGameLoop(t));
@@ -399,7 +423,6 @@ class Minecraft2D {
             }
         }
 
-        // Apply Gravity
         this.player_vy += GRAVITY;
         if (this.player_vy > 10) this.player_vy = 10;
         
@@ -417,15 +440,15 @@ class Minecraft2D {
             this.player_vy = 0;
         }
 
-        // Animation counter
         if (this.is_moving && this.on_ground) {
             this.anim_frame += 0.3;
         } else {
             this.anim_frame = 0;
         }
 
-        // Shift view field camera
+        // --- TWO AXIS CAMERA MATH ADJUSTMENT ---
         this.camera_x = this.player_x - (WIDTH / 2) + (PLAYER_WIDTH / 2);
+        this.camera_y = this.player_y - (HEIGHT / 2) + (PLAYER_HEIGHT / 2);
     }
 
     render() {
@@ -435,24 +458,28 @@ class Minecraft2D {
         const swing_offset = Math.sin(this.anim_frame) * 5;
         const lift_offset = this.is_moving ? Math.abs(Math.cos(this.anim_frame)) * 2 : 0;
 
-        // Render environment
+        // --- EXPANDED VIEWPORT CULLING FOR X AND Y AXES ---
+        // Keeps frame rates high by filtering away underground layers when high up and vice versa
         for (let key in this.world) {
             const [gx, gy] = key.split(",").map(Number);
-            this.drawBlock(gx, gy, this.world[key]);
+            const block_pixel_x = gx * GRID_SIZE;
+            const block_pixel_y = gy * GRID_SIZE;
+            
+            if (block_pixel_x >= this.camera_x - GRID_SIZE && block_pixel_x <= this.camera_x + WIDTH &&
+                block_pixel_y >= this.camera_y - GRID_SIZE && block_pixel_y <= this.camera_y + HEIGHT) {
+                this.drawBlock(gx, gy, this.world[key]);
+            }
         }
 
-        // Render dynamic entities
+        // Project positions relative to moving tracking plane coordinates
         const spx = this.player_x - this.camera_x;
-        const spy = this.player_y;
+        const spy = this.player_y - this.camera_y;
         this.drawPlayer(spx, spy, swing_offset, lift_offset);
 
-        // Render UI overlay
-        this.hotbar_slots = []; 
         this.drawHotbar();
     }
 }
 
-// Open engine
 new Minecraft2D();
 </script>
 
