@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Minecraft - HTML5 Canvas</title>
+    <title>2D Minecraft - Smooth HTML5 Canvas</title>
     <style>
         body {
             margin: 0;
@@ -104,13 +104,19 @@ class Minecraft2D {
         this.on_ground = false;
         
         this.anim_frame = 0;
+        this.is_moving = false;
         this.keys = { "a": false, "d": false };
         
         this.initEventListeners();
         this.createBiomeWorld();
         
-        // Start game loop
-        setInterval(() => this.gameLoop(), 20);
+        // --- SMOOTH TIMING SYSTEM ---
+        this.lastTime = performance.now();
+        this.accumulator = 0;
+        this.timestep = 1000 / 50; // Target strict 50 physics updates per second (20ms per tick)
+
+        // Kick off the loop synced to the monitor frame rate
+        requestAnimationFrame((timestamp) => this.smoothGameLoop(timestamp));
     }
 
     initEventListeners() {
@@ -133,7 +139,7 @@ class Minecraft2D {
             if (e.key === "d" || e.key === "D") this.keys["d"] = false;
         });
 
-        // Mouse clicks (Left click to build, Right click to mine)
+        // Mouse clicks (Left click to build, Right/Middle click to mine)
         canvas.addEventListener("mousedown", (e) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -146,7 +152,7 @@ class Minecraft2D {
             }
         });
 
-        // Prevent browser context menu pops up on right click
+        // Block contextual popups on right click
         canvas.addEventListener("contextmenu", e => e.preventDefault());
     }
 
@@ -187,7 +193,7 @@ class Minecraft2D {
     }
 
     growTree(trunk_x, base_y) {
-        const tree_height = Math.floor(Math.random() * 2) + 2; // 2 or 3 blocks
+        const tree_height = Math.floor(Math.random() * 2) + 2; 
         for (let i = 0; i < tree_height; i++) {
             this.world[`${trunk_x},${base_y - i}`] = "wood";
         }
@@ -293,12 +299,12 @@ class Minecraft2D {
     }
 
     drawPlayer(spx, spy, swing_offset, lift_offset) {
-        // Body Part rendering wrappers mimicking Tkinter rect coordinates
         const drawPart = (x1, y1, x2, y2, fill, outline) => {
             ctx.fillStyle = fill;
             ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
             if (outline) {
                 ctx.strokeStyle = outline;
+                ctx.lineWidth = 1;
                 ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
             }
         };
@@ -331,7 +337,7 @@ class Minecraft2D {
         const start_x = WIDTH / 2 - (BLOCK_TYPES.length * 50) / 2;
         const y1 = HEIGHT - 65;
         
-        // Main container
+        // Hotbar Container Box
         ctx.fillStyle = "#1A1A1A";
         ctx.strokeStyle = "#333333";
         ctx.lineWidth = 3;
@@ -342,14 +348,12 @@ class Minecraft2D {
             const slot_x = start_x + (i * 50);
             const is_selected = (b_type === this.current_block_type);
             
-            // Slot styling
             ctx.fillStyle = is_selected ? "#555566" : "#444444";
             ctx.strokeStyle = is_selected ? "#FF8800" : "#888888";
             ctx.lineWidth = is_selected ? 3 : 2;
             ctx.fillRect(slot_x, y1, 45, 45);
             ctx.strokeRect(slot_x, y1, 45, 45);
             
-            // Texture icon inside slot
             const pattern = TEXTURES[b_type];
             for (let r = 0; r < 4; r++) {
                 for (let c = 0; c < 4; c++) {
@@ -358,23 +362,36 @@ class Minecraft2D {
                 }
             }
             
-            // Number identifier
             ctx.fillStyle = "white";
             ctx.font = "bold 10px Arial";
             ctx.fillText(i + 1, slot_x + 6, y1 + 14);
         });
     }
 
-    gameLoop() {
-        // Clear screen with sky color
-        ctx.fillStyle = "skyblue";
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    smoothGameLoop(timestamp) {
+        let dt = timestamp - this.lastTime;
+        if (dt > 250) dt = 250; // Safeguard if user updates tabs
+        this.lastTime = timestamp;
 
-        // Horizontal Movement
+        this.accumulator += dt;
+
+        // Catch up on fixed updates matching original tickrate
+        while (this.accumulator >= this.timestep) {
+            this.updatePhysics();
+            this.accumulator -= this.timestep;
+        }
+
+        // Draw the frame cleanly
+        this.render();
+
+        requestAnimationFrame((t) => this.smoothGameLoop(t));
+    }
+
+    updatePhysics() {
         let dx = 0;
-        let is_moving = false;
-        if (this.keys["a"]) { dx -= MOVE_SPEED; is_moving = true; }
-        if (this.keys["d"]) { dx += MOVE_SPEED; is_moving = true; }
+        if (this.keys["a"]) { dx -= MOVE_SPEED; this.is_moving = true; }
+        if (this.keys["d"]) { dx += MOVE_SPEED; this.is_moving = true; }
+        if (!this.keys["a"] && !this.keys["d"]) this.is_moving = false;
         
         if (dx !== 0) {
             if (!this.checkCollision(this.player_x + dx, this.player_y)) {
@@ -382,7 +399,7 @@ class Minecraft2D {
             }
         }
 
-        // Vertical Physics
+        // Apply Gravity
         this.player_vy += GRAVITY;
         if (this.player_vy > 10) this.player_vy = 10;
         
@@ -394,43 +411,48 @@ class Minecraft2D {
         } else {
             if (this.player_vy > 0) {
                 this.on_ground = true;
-                // Snap exactly 1 pixel above the ground surface row
                 let collided_row = Math.floor((new_y + PLAYER_HEIGHT) / GRID_SIZE);
                 this.player_y = (collided_row * GRID_SIZE) - PLAYER_HEIGHT - 1;
             }
             this.player_vy = 0;
         }
 
-        // Handle Animation cycles
-        if (is_moving && this.on_ground) {
+        // Animation counter
+        if (this.is_moving && this.on_ground) {
             this.anim_frame += 0.3;
         } else {
             this.anim_frame = 0;
         }
-        
-        const swing_offset = Math.sin(this.anim_frame) * 5;
-        const lift_offset = is_moving ? Math.abs(Math.cos(this.anim_frame)) * 2 : 0;
 
-        // Camera Tracking
+        // Shift view field camera
         this.camera_x = this.player_x - (WIDTH / 2) + (PLAYER_WIDTH / 2);
+    }
 
-        // Draw World Blocks
+    render() {
+        ctx.fillStyle = "skyblue";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        const swing_offset = Math.sin(this.anim_frame) * 5;
+        const lift_offset = this.is_moving ? Math.abs(Math.cos(this.anim_frame)) * 2 : 0;
+
+        // Render environment
         for (let key in this.world) {
             const [gx, gy] = key.split(",").map(Number);
             this.drawBlock(gx, gy, this.world[key]);
         }
 
-        // Draw Player Character
+        // Render dynamic entities
         const spx = this.player_x - this.camera_x;
         const spy = this.player_y;
         this.drawPlayer(spx, spy, swing_offset, lift_offset);
 
-        // Draw UI
+        // Render UI overlay
+        this.hotbar_slots = []; 
         this.drawHotbar();
     }
 }
 
-// Instantiate the game
+// Open engine
 new Minecraft2D();
 </script>
 
